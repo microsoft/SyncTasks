@@ -23,7 +23,6 @@
   </ItemGroup>
   <ItemGroup>
     <TypeScriptCompile Include="SyncTasks.ts" />
-    <TypeScriptCompile Include="SyncTasksInternal.ts" />
     <TypeScriptCompile Include="tests\dependencies.d.ts" />
     <TypeScriptCompile Include="tests\SyncTasksTests.ts" />
   </ItemGroup>
@@ -55,7 +54,7 @@
   </ProjectExtensions>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <TypeScriptRemoveComments>false</TypeScriptRemoveComments>
-    <TypeScriptSourceMap>true</TypeScriptSourceMap>
+    <TypeScriptSourceMap>False</TypeScriptSourceMap>
     <TypeScriptTarget>ES5</TypeScriptTarget>
     <TypeScriptJSXEmit>None</TypeScriptJSXEmit>
     <TypeScriptCompileOnSaveEnabled>True</TypeScriptCompileOnSaveEnabled>

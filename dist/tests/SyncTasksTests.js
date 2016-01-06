@@ -303,4 +303,3 @@ describe('SyncTasks', function () {
         task.resolve(1);
     });
 });
-//# sourceMappingURL=SyncTasksTests.js.map
