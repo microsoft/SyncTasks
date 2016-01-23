@@ -317,7 +317,7 @@ export function whenAll(tasks: Promise<any>[]): Promise<any[]> {
     };
 
     tasks.forEach((task, index) => {
-        if (task && task instanceof Internal.SyncTask) {
+        if (task && isThenable(task)) {
             task.then(res => {
                 results[index] = res;
                 checkFinish();

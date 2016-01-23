@@ -278,7 +278,7 @@ function whenAll(tasks) {
         }
     };
     tasks.forEach(function (task, index) {
-        if (task && task instanceof Internal.SyncTask) {
+        if (task && isThenable(task)) {
             task.then(function (res) {
                 results[index] = res;
                 checkFinish();
