@@ -23,8 +23,10 @@ export interface Deferred<T> {
     reject(obj?: any): Deferred<T>;
     promise(): Promise<T>;
 }
-export interface Promise<T> {
+export interface Thenable<T> {
     then<U>(successFunc: (value: T) => U | Promise<U>, errorFunc?: (error: any) => U | Promise<U>): Promise<U>;
+}
+export interface Promise<T> extends Thenable<T> {
     finally(func: (value: T) => any): Promise<T>;
     always(func: (value: T) => any): Promise<T>;
     done<U>(successFunc: (value: T) => U | Promise<U>): Promise<T>;

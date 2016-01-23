@@ -20,6 +20,12 @@ exports.config = {
     catchExceptions: true,
     exceptionHandler: null
 };
+function isObject(value) {
+    return value === Object(value);
+}
+function isThenable(object) {
+    return isObject(object) && typeof object.then === 'function';
+}
 function Defer() {
     return new Internal.SyncTask();
 }
@@ -109,7 +115,7 @@ var Internal;
                 if (callback.successFunc) {
                     var runner = function () {
                         var ret = callback.successFunc(_this._storedResolution);
-                        if (ret instanceof SyncTask) {
+                        if (isThenable(ret)) {
                             var newTask = ret;
                             // The success block of a then returned a new promise, so 
                             newTask.then(function (r) { callback.task.resolve(r); }, function (e) { callback.task.reject(e); });
@@ -139,10 +145,13 @@ var Internal;
                 else if (callback.finallyFunc) {
                     var runner = function () {
                         var ret = callback.finallyFunc(_this._storedResolution);
-                        if (ret instanceof SyncTask) {
+                        if (isThenable(ret)) {
                             var newTask = ret;
                             // The finally returned a new promise, so wait for it to run first
-                            newTask.always(function () { callback.task.resolve(_this._storedResolution); });
+                            var alwaysMethod = function () { callback.task.resolve(_this._storedResolution); };
+                            // We use "then" here to emulate "always" because isThenable only
+                            // checks if the object has a "then", not an "always".
+                            newTask.then(alwaysMethod, alwaysMethod);
                         }
                         else {
                             callback.task.resolve(_this._storedResolution);
@@ -178,7 +187,7 @@ var Internal;
                 if (callback.failFunc) {
                     var runner = function () {
                         var ret = callback.failFunc(_this._storedErrResolution);
-                        if (ret instanceof SyncTask) {
+                        if (isThenable(ret)) {
                             var newTask = ret;
                             newTask.then(function (r) { callback.task.resolve(r); }, function (e) { callback.task.reject(e); });
                         }
@@ -210,10 +219,13 @@ var Internal;
                 else if (callback.finallyFunc) {
                     var runner = function () {
                         var ret = callback.finallyFunc(_this._storedErrResolution);
-                        if (ret instanceof SyncTask) {
+                        if (isThenable(ret)) {
                             var newTask = ret;
                             // The finally returned a new promise, so wait for it to run first
-                            newTask.always(function () { callback.task.reject(_this._storedErrResolution); });
+                            var alwaysMethod = function () { callback.task.reject(_this._storedErrResolution); };
+                            // We use "then" here to emulate "always" because isThenable only
+                            // checks if the object has a "then", not an "always".
+                            newTask.then(alwaysMethod, alwaysMethod);
                         }
                         else {
                             callback.task.reject(_this._storedErrResolution);

@@ -24,6 +24,14 @@ export var config = {
     exceptionHandler: <(ex: Error) => void>null
 };
 
+function isObject(value) {
+    return value === Object(value);
+}
+
+function isThenable(object) {
+    return isObject(object) && typeof object.then === 'function';
+}
+
 export function Defer<T>(): Deferred<T> {
     return new Internal.SyncTask<T>();
 }
@@ -44,9 +52,11 @@ export interface Deferred<T> {
     promise(): Promise<T>;
 }
 
-export interface Promise<T> {
+export interface Thenable<T> {
     then<U>(successFunc: (value: T) => U | Promise<U>, errorFunc?: (error: any) => U | Promise<U>): Promise<U>;
+}
 
+export interface Promise<T> extends Thenable<T> {
     finally(func: (value: T) => any): Promise<T>;
 
     always(func: (value: T) => any): Promise<T>;
@@ -155,8 +165,8 @@ export module Internal {
                 if (callback.successFunc) {
                     let runner = () => {
                         let ret = callback.successFunc(this._storedResolution);
-                        if (ret instanceof SyncTask) {
-                            let newTask = <SyncTask<any>>ret;
+                        if (isThenable(ret)) {
+                            let newTask = <Thenable<any>>ret;
                             // The success block of a then returned a new promise, so 
                             newTask.then(r => { callback.task.resolve(r); }, e => { callback.task.reject(e); });
                         } else {
@@ -181,10 +191,15 @@ export module Internal {
                 } else if (callback.finallyFunc) {
                     let runner = () => {
                         let ret = callback.finallyFunc(this._storedResolution);
-                        if (ret instanceof SyncTask) {
-                            let newTask = <SyncTask<any>>ret;
+                        if (isThenable(ret)) {
+                            let newTask = <Thenable<any>>ret;
+
                             // The finally returned a new promise, so wait for it to run first
-                            newTask.always(() => { callback.task.resolve(this._storedResolution); });
+                            let alwaysMethod = () => { callback.task.resolve(this._storedResolution); };
+
+                            // We use "then" here to emulate "always" because isThenable only
+                            // checks if the object has a "then", not an "always".
+                            newTask.then(alwaysMethod, alwaysMethod);
                         } else {
                             callback.task.resolve(this._storedResolution);
                         }
@@ -216,8 +231,8 @@ export module Internal {
                 if (callback.failFunc) {
                     let runner = () => {
                         let ret = callback.failFunc(this._storedErrResolution);
-                        if (ret instanceof SyncTask) {
-                            let newTask = <SyncTask<any>>ret;
+                        if (isThenable(ret)) {
+                            let newTask = <Thenable<any>>ret;
                             newTask.then(r => { callback.task.resolve(r); }, e => { callback.task.reject(e); });
                         } else if (typeof (ret) !== 'undefined' && ret !== null) {
                             callback.task.resolve(<any>ret);
@@ -243,10 +258,16 @@ export module Internal {
                 } else if (callback.finallyFunc) {
                     let runner = () => {
                         let ret = callback.finallyFunc(this._storedErrResolution);
-                        if (ret instanceof SyncTask) {
-                            let newTask = <SyncTask<any>>ret;
+                        if (isThenable(ret)) {
+                            let newTask = <Thenable<any>>ret;
+
                             // The finally returned a new promise, so wait for it to run first
-                            newTask.always(() => { callback.task.reject(this._storedErrResolution); });
+                            let alwaysMethod = () => { callback.task.reject(this._storedErrResolution); };
+
+                            // We use "then" here to emulate "always" because isThenable only
+                            // checks if the object has a "then", not an "always".
+                            newTask.then(alwaysMethod, alwaysMethod);
+
                         } else {
                             callback.task.reject(this._storedErrResolution);
                         }
