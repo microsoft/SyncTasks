@@ -10,6 +10,7 @@
  * context for its calls if you send them around the event loop and transactions
  * automatically close.
  */
+"use strict";
 exports.config = {
     // If we catch exceptions in success/fail blocks, it silently falls back to the fail case of the outer promise.
     // If this is global variable is true, it will also spit out a console.error with the exception for debugging.
@@ -44,17 +45,21 @@ var Internal;
         function SyncTask() {
             this._completedSuccess = false;
             this._completedFail = false;
+            this._resolving = false;
             this._storedCallbackSets = [];
         }
         SyncTask.prototype._addCallbackSet = function (set) {
             var task = this._makeTask();
             set.task = task;
             this._storedCallbackSets.push(set);
-            if (this._completedSuccess) {
-                this._resolveSuccesses();
-            }
-            else if (this._completedFail) {
-                this._resolveFailures();
+            // The _resolve* functions handle callbacks being added while they are running.
+            if (!this._resolving) {
+                if (this._completedSuccess) {
+                    this._resolveSuccesses();
+                }
+                else if (this._completedFail) {
+                    this._resolveFailures();
+                }
             }
             return task.promise();
         };
@@ -111,7 +116,11 @@ var Internal;
         };
         SyncTask.prototype._resolveSuccesses = function () {
             var _this = this;
-            this._storedCallbackSets.forEach(function (callback) {
+            this._resolving = true;
+            // Only iterate over the current list of callbacks.
+            var callbacks = this._storedCallbackSets;
+            this._storedCallbackSets = [];
+            callbacks.forEach(function (callback) {
                 if (callback.successFunc) {
                     var runner = function () {
                         var ret = callback.successFunc(_this._storedResolution);
@@ -179,11 +188,19 @@ var Internal;
                     callback.task.resolve(_this._storedResolution);
                 }
             });
-            this._storedCallbackSets = [];
+            this._resolving = false;
+            // Handle any callbacks added while the above loop was running.
+            if (this._storedCallbackSets.length) {
+                this._resolveSuccesses();
+            }
         };
         SyncTask.prototype._resolveFailures = function () {
             var _this = this;
-            this._storedCallbackSets.forEach(function (callback) {
+            this._resolving = true;
+            // Only iterate over the current list of callbacks.
+            var callbacks = this._storedCallbackSets;
+            this._storedCallbackSets = [];
+            callbacks.forEach(function (callback) {
                 if (callback.failFunc) {
                     var runner = function () {
                         var ret = callback.failFunc(_this._storedErrResolution);
@@ -253,10 +270,14 @@ var Internal;
                     callback.task.reject(_this._storedErrResolution);
                 }
             });
-            this._storedCallbackSets = [];
+            this._resolving = false;
+            // Handle any callbacks added while the above loop was running.
+            if (this._storedCallbackSets.length) {
+                this._resolveFailures();
+            }
         };
         return SyncTask;
-    })();
+    }());
     Internal.SyncTask = SyncTask;
 })(Internal = exports.Internal || (exports.Internal = {}));
 function whenAll(tasks) {

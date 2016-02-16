@@ -364,4 +364,131 @@ describe('SyncTasks', function () {
 
         task.resolve(1);
     });
+
+    it('Callbacks resolve synchronously', (done) => {
+        const task = SyncTasks.Defer<number>();
+        let resolvedCount = 0;
+        
+        task.promise().then(() => {
+            ++resolvedCount;
+        }, err => {
+            assert(false);
+        });
+        
+        task.resolve(1);
+        assert(resolvedCount === 1);
+        done();
+    });
+
+    it('Callbacks resolve in order added', (done) => {
+        const task = SyncTasks.Defer<number>();
+        let resolvedCount = 0;
+        
+        task.promise().then(() => {
+            assert(resolvedCount === 0);
+            ++resolvedCount;
+        }, err => {
+            assert(false);
+        });
+
+        task.promise().then(() => {
+            assert(resolvedCount === 1);
+            ++resolvedCount;
+        }, err => {
+            assert(false);
+        });
+
+        task.resolve(1);
+        assert(resolvedCount === 2);
+        done();
+    });
+
+    it('Failure callbacks resolve in order added', (done) => {
+        const task = SyncTasks.Defer<number>();
+        let rejectedCount = 0;
+
+        task.promise().then(() => {
+            assert(false);
+        }, err => {
+            assert(rejectedCount === 0);
+            ++rejectedCount;
+        });
+
+        task.promise().then(() => {
+            assert(false);
+        }, err => {
+            assert(rejectedCount === 1);
+            ++rejectedCount;
+        });
+
+        task.reject(1);
+        assert(rejectedCount === 2);
+        done();
+    });
+
+    it('Add callback while resolving', (done) => {
+        const task = SyncTasks.Defer<number>();
+        const promise = task.promise();
+        let resolvedCount = 0;
+
+        const innerTask1 = SyncTasks.Defer<number>();
+        const innerTask2 = SyncTasks.Defer<number>();
+
+        promise.then(() => {
+            // While resolving: add callback to same promise.
+            promise.then(() => {
+                innerTask2.resolve(++resolvedCount);
+            }, err => {
+                assert(false);
+            });
+            // This line should be reached before innerTask2 resolves.
+            innerTask1.resolve(++resolvedCount);
+        }, err => {
+            assert(false);
+        });
+
+        task.resolve(1);
+
+        SyncTasks.whenAll([innerTask1.promise(), innerTask2.promise()]).then(rets => {
+            assert(rets.length === 2);
+            assert(rets[0] === 1);
+            assert(rets[1] === 2);
+            done();
+        }, err => {
+            assert(false);
+        });
+    });
+
+    it('Add callback while rejecting', (done) => {
+        const task = SyncTasks.Defer<number>();
+        const promise = task.promise();
+        let rejectedCount = 0;
+
+        const innerTask1 = SyncTasks.Defer<number>();
+        const innerTask2 = SyncTasks.Defer<number>();
+
+        promise.then(() => {
+            assert(false);
+        }, err => {
+            // While resolving: add callback to same promise.
+            promise.then(() => {
+                assert(false);
+            }, err => {
+                innerTask2.resolve(++rejectedCount);
+            });
+            // This line should be reached before innerTask2 resolves.
+            innerTask1.resolve(++rejectedCount);
+        });
+
+        task.reject(1);
+
+        SyncTasks.whenAll([innerTask1.promise(), innerTask2.promise()]).then(rets => {
+            assert(rets.length === 2);
+            assert(rets[0] === 1);
+            assert(rets[1] === 2);
+            done();
+        }, err => {
+            assert(false);
+        });
+    });
 });

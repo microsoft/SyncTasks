@@ -1,4 +1,5 @@
 /// <reference path="dependencies.d.ts"/>
+"use strict";
 var assert = require('assert');
 var SyncTasks = require('../SyncTasks');
 describe('SyncTasks', function () {
@@ -301,5 +302,111 @@ describe('SyncTasks', function () {
             assert(false);
         });
         task.resolve(1);
+    });
+    it('Callbacks resolve synchronously', function (done) {
+        var task = SyncTasks.Defer();
+        var resolvedCount = 0;
+        task.promise().then(function () {
+            ++resolvedCount;
+        }, function (err) {
+            assert(false);
+        });
+        task.resolve(1);
+        assert(resolvedCount === 1);
+        done();
+    });
+    it('Callbacks resolve in order added', function (done) {
+        var task = SyncTasks.Defer();
+        var resolvedCount = 0;
+        task.promise().then(function () {
+            assert(resolvedCount === 0);
+            ++resolvedCount;
+        }, function (err) {
+            assert(false);
+        });
+        task.promise().then(function () {
+            assert(resolvedCount === 1);
+            ++resolvedCount;
+        }, function (err) {
+            assert(false);
+        });
+        task.resolve(1);
+        assert(resolvedCount === 2);
+        done();
+    });
+    it('Failure callbacks resolve in order added', function (done) {
+        var task = SyncTasks.Defer();
+        var rejectedCount = 0;
+        task.promise().then(function () {
+            assert(false);
+        }, function (err) {
+            assert(rejectedCount === 0);
+            ++rejectedCount;
+        });
+        task.promise().then(function () {
+            assert(false);
+        }, function (err) {
+            assert(rejectedCount === 1);
+            ++rejectedCount;
+        });
+        task.reject(1);
+        assert(rejectedCount === 2);
+        done();
+    });
+    it('Add callback while resolving', function (done) {
+        var task = SyncTasks.Defer();
+        var promise = task.promise();
+        var resolvedCount = 0;
+        var innerTask1 = SyncTasks.Defer();
+        var innerTask2 = SyncTasks.Defer();
+        promise.then(function () {
+            // While resolving: add callback to same promise.
+            promise.then(function () {
+                innerTask2.resolve(++resolvedCount);
+            }, function (err) {
+                assert(false);
+            });
+            // This line should be reached before innerTask2 resolves.
+            innerTask1.resolve(++resolvedCount);
+        }, function (err) {
+            assert(false);
+        });
+        task.resolve(1);
+        SyncTasks.whenAll([innerTask1.promise(), innerTask2.promise()]).then(function (rets) {
+            assert(rets.length === 2);
+            assert(rets[0] === 1);
+            assert(rets[1] === 2);
+            done();
+        }, function (err) {
+            assert(false);
+        });
+    });
+    it('Add callback while rejecting', function (done) {
+        var task = SyncTasks.Defer();
+        var promise = task.promise();
+        var rejectedCount = 0;
+        var innerTask1 = SyncTasks.Defer();
+        var innerTask2 = SyncTasks.Defer();
+        promise.then(function () {
+            assert(false);
+        }, function (err) {
+            // While resolving: add callback to same promise.
+            promise.then(function () {
+                assert(false);
+            }, function (err) {
+                innerTask2.resolve(++rejectedCount);
+            });
+            // This line should be reached before innerTask2 resolves.
+            innerTask1.resolve(++rejectedCount);
+        });
+        task.reject(1);
+        SyncTasks.whenAll([innerTask1.promise(), innerTask2.promise()]).then(function (rets) {
+            assert(rets.length === 2);
+            assert(rets[0] === 1);
+            assert(rets[1] === 2);
+            done();
+        }, function (err) {
+            assert(false);
+        });
     });
 });

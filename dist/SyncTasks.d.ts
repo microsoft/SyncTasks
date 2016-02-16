@@ -44,6 +44,7 @@ export declare module Internal {
         private _storedErrResolution;
         protected _completedSuccess: boolean;
         protected _completedFail: boolean;
+        private _resolving;
         private _storedCallbackSets;
         protected _addCallbackSet<U>(set: CallbackSet): Promise<U>;
         protected _makeTask<U>(): Deferred<U>;

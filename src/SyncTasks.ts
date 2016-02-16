@@ -80,6 +80,8 @@ export module Internal {
         protected _completedSuccess = false;
         protected _completedFail = false;
 
+        private _resolving = false;
+
         private _storedCallbackSets: CallbackSet[] = [];
 
         protected _addCallbackSet<U>(set: CallbackSet): Promise<U> {
@@ -87,10 +89,13 @@ export module Internal {
             set.task = task;
             this._storedCallbackSets.push(set);
 
-            if (this._completedSuccess) {
-                this._resolveSuccesses();
-            } else if (this._completedFail) {
-                this._resolveFailures();
+            // The _resolve* functions handle callbacks being added while they are running.
+            if (!this._resolving) {
+                if (this._completedSuccess) {
+                    this._resolveSuccesses();
+                } else if (this._completedFail) {
+                    this._resolveFailures();
+                }
             }
 
             return task.promise();
@@ -161,7 +166,13 @@ export module Internal {
         }
 
         private _resolveSuccesses() {
-            this._storedCallbackSets.forEach(callback => {
+            this._resolving = true;
+
+            // Only iterate over the current list of callbacks.
+            const callbacks = this._storedCallbackSets;
+            this._storedCallbackSets = [];
+
+            callbacks.forEach(callback => {
                 if (callback.successFunc) {
                     let runner = () => {
                         let ret = callback.successFunc(this._storedResolution);
@@ -223,11 +234,23 @@ export module Internal {
                     callback.task.resolve(this._storedResolution);
                 }
             });
-            this._storedCallbackSets = [];
+
+            this._resolving = false;
+
+            // Handle any callbacks added while the above loop was running.
+            if (this._storedCallbackSets.length) {
+                this._resolveSuccesses();
+            }
         }
 
         private _resolveFailures() {
-            this._storedCallbackSets.forEach(callback => {
+            this._resolving = true;
+
+            // Only iterate over the current list of callbacks.
+            const callbacks = this._storedCallbackSets;
+            this._storedCallbackSets = [];
+
+            callbacks.forEach(callback => {
                 if (callback.failFunc) {
                     let runner = () => {
                         let ret = callback.failFunc(this._storedErrResolution);
@@ -291,7 +314,13 @@ export module Internal {
                     callback.task.reject(this._storedErrResolution);
                 }
             });
-            this._storedCallbackSets = [];
+
+            this._resolving = false;
+
+            // Handle any callbacks added while the above loop was running.
+            if (this._storedCallbackSets.length) {
+                this._resolveFailures();
+            }
         }
     }
 }
