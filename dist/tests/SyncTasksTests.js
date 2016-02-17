@@ -1,5 +1,4 @@
 /// <reference path="dependencies.d.ts"/>
-"use strict";
 var assert = require('assert');
 var SyncTasks = require('../SyncTasks');
 describe('SyncTasks', function () {

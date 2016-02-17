@@ -24,12 +24,26 @@ export var config = {
     exceptionHandler: <(ex: Error) => void>null
 };
 
-function isObject(value) {
-    return value === Object(value);
+function isThenable(object): boolean {
+    return object !== null && object !== void 0 && typeof object.then === 'function';
 }
 
-function isThenable(object) {
-    return isObject(object) && typeof object.then === 'function';
+// Any try/catch/finally block in a function makes the entire function ineligible for optimization is most JS engines.
+function attempt<T, C extends any>(trier: () => T, catcher?: (e: Error) => C): T|C {
+    try {
+        return trier();
+    } catch (e) {
+        return catcher(e);
+    }
+}
+
+// Runs trier(). If config.catchExceptions is set then any exception is caught and handed to catcher.
+function run<T, C extends any>(trier: () => T, catcher?: (e: Error) => C): T | C {
+    if (config.catchExceptions) {
+        return attempt(trier, catcher);
+    } else {
+        return trier();
+    }
 }
 
 export function Defer<T>(): Deferred<T> {
@@ -174,7 +188,7 @@ export module Internal {
 
             callbacks.forEach(callback => {
                 if (callback.successFunc) {
-                    let runner = () => {
+                    run(() => {
                         let ret = callback.successFunc(this._storedResolution);
                         if (isThenable(ret)) {
                             let newTask = <Thenable<any>>ret;
@@ -183,24 +197,12 @@ export module Internal {
                         } else {
                             callback.task.resolve(ret);
                         }
-                    };
-                    if (config.catchExceptions) {
-                        try {
-                            runner();
-                        } catch (e) {
-                            if (config.exceptionsToConsole) {
-                                console.error('SyncTask caught exception in success block: ' + e.toString());
-                            }
-                            if (config.exceptionHandler) {
-                                config.exceptionHandler(e);
-                            }
-                            callback.task.reject(e);
-                        }
-                    } else {
-                        runner();
-                    }
+                    }, e => {
+                        this._handleException(e, 'SyncTask caught exception in success block: ' + e.toString());
+                        callback.task.reject(e);
+                    });
                 } else if (callback.finallyFunc) {
-                    let runner = () => {
+                    run(() => {
                         let ret = callback.finallyFunc(this._storedResolution);
                         if (isThenable(ret)) {
                             let newTask = <Thenable<any>>ret;
@@ -214,22 +216,10 @@ export module Internal {
                         } else {
                             callback.task.resolve(this._storedResolution);
                         }
-                    };
-                    if (config.catchExceptions) {
-                        try {
-                            runner();
-                        } catch (e) {
-                            if (config.exceptionsToConsole) {
-                                console.error('SyncTask caught exception in success finally block: ' + e.toString());
-                            }
-                            if (config.exceptionHandler) {
-                                config.exceptionHandler(e);
-                            }
-                            callback.task.resolve(this._storedResolution);
-                        }
-                    } else {
-                        runner();
-                    }
+                    }, e => {
+                        this._handleException(e, 'SyncTask caught exception in success finally block: ' + e.toString());
+                        callback.task.resolve(this._storedResolution);
+                    });
                 } else {
                     callback.task.resolve(this._storedResolution);
                 }
@@ -252,7 +242,7 @@ export module Internal {
 
             callbacks.forEach(callback => {
                 if (callback.failFunc) {
-                    let runner = () => {
+                    run(() => {
                         let ret = callback.failFunc(this._storedErrResolution);
                         if (isThenable(ret)) {
                             let newTask = <Thenable<any>>ret;
@@ -262,24 +252,12 @@ export module Internal {
                         } else {
                             callback.task.reject(void 0);
                         }
-                    };
-                    if (config.catchExceptions) {
-                        try {
-                            runner();
-                        } catch (e) {
-                            if (config.exceptionsToConsole) {
-                                console.error('SyncTask caught exception in failure block: ' + e.toString());
-                            }
-                            if (config.exceptionHandler) {
-                                config.exceptionHandler(e);
-                            }
-                            callback.task.reject(e);
-                        }
-                    } else {
-                        runner();
-                    }
+                    }, e => {
+                        this._handleException(e, 'SyncTask caught exception in failure block: ' + e.toString());
+                        callback.task.reject(e);
+                    });
                 } else if (callback.finallyFunc) {
-                    let runner = () => {
+                    run(() => {
                         let ret = callback.finallyFunc(this._storedErrResolution);
                         if (isThenable(ret)) {
                             let newTask = <Thenable<any>>ret;
@@ -294,22 +272,10 @@ export module Internal {
                         } else {
                             callback.task.reject(this._storedErrResolution);
                         }
-                    };
-                    if (config.catchExceptions) {
-                        try {
-                            runner();
-                        } catch (e) {
-                            if (config.exceptionsToConsole) {
-                                console.error('SyncTask caught exception in failure finally block: ' + e.toString());
-                            }
-                            if (config.exceptionHandler) {
-                                config.exceptionHandler(e);
-                            }
-                            callback.task.reject(this._storedErrResolution);
-                        }
-                    } else {
-                        runner();
-                    }
+                    }, e => {
+                        this._handleException(e, 'SyncTask caught exception in failure finally block: ' + e.toString());
+                        callback.task.reject(this._storedErrResolution);
+                    });
                 } else {
                     callback.task.reject(this._storedErrResolution);
                 }
@@ -320,6 +286,15 @@ export module Internal {
             // Handle any callbacks added while the above loop was running.
             if (this._storedCallbackSets.length) {
                 this._resolveFailures();
+            }
+        }
+
+        private _handleException(e: Error, message: string): void {
+            if (config.exceptionsToConsole) {
+                console.error(message);
+            }
+            if (config.exceptionHandler) {
+                config.exceptionHandler(e);
             }
         }
     }
@@ -346,7 +321,7 @@ export function whenAll(tasks: Promise<any>[]): Promise<any[]> {
     };
 
     tasks.forEach((task, index) => {
-        if (task && isThenable(task)) {
+        if (isThenable(task)) {
             task.then(res => {
                 results[index] = res;
                 checkFinish();

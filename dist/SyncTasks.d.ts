@@ -58,6 +58,7 @@ export declare module Internal {
         promise(): Promise<T>;
         private _resolveSuccesses();
         private _resolveFailures();
+        private _handleException(e, message);
     }
 }
 export declare function whenAll(tasks: Promise<any>[]): Promise<any[]>;
