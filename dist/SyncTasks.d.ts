@@ -10,7 +10,7 @@
  * context for its calls if you send them around the event loop and transactions
  * automatically close.
  */
-export declare var config: {
+export declare const config: {
     exceptionsToConsole: boolean;
     catchExceptions: boolean;
     exceptionHandler: (ex: Error) => void;

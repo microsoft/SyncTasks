@@ -11,7 +11,7 @@
  * automatically close.
  */
 
-export var config = {
+export const config = {
     // If we catch exceptions in success/fail blocks, it silently falls back to the fail case of the outer promise.
     // If this is global variable is true, it will also spit out a console.error with the exception for debugging.
     exceptionsToConsole: true,
@@ -189,9 +189,9 @@ export module Internal {
             callbacks.forEach(callback => {
                 if (callback.successFunc) {
                     run(() => {
-                        let ret = callback.successFunc(this._storedResolution);
+                        const ret = callback.successFunc(this._storedResolution);
                         if (isThenable(ret)) {
-                            let newTask = <Thenable<any>>ret;
+                            const newTask = <Thenable<any>>ret;
                             // The success block of a then returned a new promise, so 
                             newTask.then(r => { callback.task.resolve(r); }, e => { callback.task.reject(e); });
                         } else {
@@ -203,12 +203,12 @@ export module Internal {
                     });
                 } else if (callback.finallyFunc) {
                     run(() => {
-                        let ret = callback.finallyFunc(this._storedResolution);
+                        const ret = callback.finallyFunc(this._storedResolution);
                         if (isThenable(ret)) {
-                            let newTask = <Thenable<any>>ret;
+                            const newTask = <Thenable<any>>ret;
 
                             // The finally returned a new promise, so wait for it to run first
-                            let alwaysMethod = () => { callback.task.resolve(this._storedResolution); };
+                            const alwaysMethod = () => { callback.task.resolve(this._storedResolution); };
 
                             // We use "then" here to emulate "always" because isThenable only
                             // checks if the object has a "then", not an "always".
@@ -243,12 +243,12 @@ export module Internal {
             callbacks.forEach(callback => {
                 if (callback.failFunc) {
                     run(() => {
-                        let ret = callback.failFunc(this._storedErrResolution);
+                        const ret = callback.failFunc(this._storedErrResolution);
                         if (isThenable(ret)) {
-                            let newTask = <Thenable<any>>ret;
+                            const newTask = <Thenable<any>>ret;
                             newTask.then(r => { callback.task.resolve(r); }, e => { callback.task.reject(e); });
                         } else if (typeof (ret) !== 'undefined' && ret !== null) {
-                            callback.task.resolve(<any>ret);
+                            callback.task.resolve(ret);
                         } else {
                             callback.task.reject(void 0);
                         }
@@ -258,12 +258,12 @@ export module Internal {
                     });
                 } else if (callback.finallyFunc) {
                     run(() => {
-                        let ret = callback.finallyFunc(this._storedErrResolution);
+                        const ret = callback.finallyFunc(this._storedErrResolution);
                         if (isThenable(ret)) {
-                            let newTask = <Thenable<any>>ret;
+                            const newTask = <Thenable<any>>ret;
 
                             // The finally returned a new promise, so wait for it to run first
-                            let alwaysMethod = () => { callback.task.reject(this._storedErrResolution); };
+                            const alwaysMethod = () => { callback.task.reject(this._storedErrResolution); };
 
                             // We use "then" here to emulate "always" because isThenable only
                             // checks if the object has a "then", not an "always".
@@ -305,10 +305,10 @@ export function whenAll(tasks: Promise<any>[]): Promise<any[]> {
         return Resolved<any[]>([]);
     }
 
-    let outTask = Defer<any[]>();
+    const outTask = Defer<any[]>();
     let countRemaining = tasks.length;
     let foundError: any = null;
-    let results: any[] = Array(tasks.length);
+    const results = Array(tasks.length);
 
     const checkFinish = () => {
         if (--countRemaining === 0) {
