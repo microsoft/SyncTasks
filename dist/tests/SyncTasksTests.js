@@ -1,4 +1,5 @@
 /// <reference path="dependencies.d.ts"/>
+"use strict";
 var assert = require('assert');
 var SyncTasks = require('../SyncTasks');
 describe('SyncTasks', function () {
@@ -406,6 +407,57 @@ describe('SyncTasks', function () {
             done();
         }, function (err) {
             assert(false);
+        });
+    });
+    it('Cancel task happy path', function () {
+        var canceled = false;
+        var cancelContext;
+        var task = SyncTasks.Defer();
+        task.onCancel(function (context) {
+            canceled = true;
+            cancelContext = context;
+            task.reject(5);
+        });
+        var promise = task.promise();
+        promise.cancel(4);
+        return promise.then(function () {
+            assert(false);
+            return SyncTasks.Rejected();
+        }, function (err) {
+            assert.equal(err, 5);
+            assert(canceled);
+            assert.equal(cancelContext, 4);
+            return SyncTasks.Resolved();
+        });
+    });
+    it('Cancel task chained', function () {
+        var canceled = false;
+        var cancelContext;
+        var task = SyncTasks.Defer();
+        task.onCancel(function (context) {
+            canceled = true;
+            cancelContext = context;
+            task.reject(5);
+        });
+        var promise = task.promise();
+        var secPromise = promise.then(function () {
+            assert(false);
+            return SyncTasks.Rejected();
+        }, function (err) {
+            assert.equal(err, 5);
+            assert(canceled);
+            assert.equal(cancelContext, 4);
+            return void 0;
+        });
+        secPromise.cancel(4);
+        return promise.then(function () {
+            assert(false);
+            return SyncTasks.Rejected();
+        }, function (err) {
+            assert.equal(err, 5);
+            assert(canceled);
+            assert.equal(cancelContext, 4);
+            return SyncTasks.Resolved();
         });
     });
 });

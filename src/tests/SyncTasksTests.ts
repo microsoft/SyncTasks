@@ -491,4 +491,63 @@ describe('SyncTasks', function () {
             assert(false);
         });
     });
+
+    it('Cancel task happy path', () => {
+        let canceled = false;
+        let cancelContext: any;
+
+        const task = SyncTasks.Defer<number>();
+        task.onCancel((context) => {
+            canceled = true;
+            cancelContext = context;
+            task.reject(5);
+        });
+
+        const promise = task.promise();
+        promise.cancel(4);
+
+        return promise.then(() => {
+            assert(false);
+            return SyncTasks.Rejected();
+        }, (err) => {
+            assert.equal(err, 5);
+            assert(canceled);
+            assert.equal(cancelContext, 4);
+            return SyncTasks.Resolved<number>();
+        });
+    });
+
+    it('Cancel task chained', () => {
+        let canceled = false;
+        let cancelContext: any;
+
+        const task = SyncTasks.Defer<number>();
+        task.onCancel((context) => {
+            canceled = true;
+            cancelContext = context;
+            task.reject(5);
+        });
+
+        const promise = task.promise();
+        const secPromise = promise.then(() => {
+            assert(false);
+            return SyncTasks.Rejected();
+        }, (err) => {
+            assert.equal(err, 5);
+            assert(canceled);
+            assert.equal(cancelContext, 4);
+            return void 0;
+        });
+        secPromise.cancel(4);
+
+        return promise.then(() => {
+            assert(false);
+            return SyncTasks.Rejected();
+        }, (err) => {
+            assert.equal(err, 5);
+            assert(canceled);
+            assert.equal(cancelContext, 4);
+            return SyncTasks.Resolved<number>();
+        });
+    });
 });

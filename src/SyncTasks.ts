@@ -46,6 +46,10 @@ function run<T, C extends any>(trier: () => T, catcher?: (e: Error) => C): T | C
     }
 }
 
+export type SuccessFunc<T, U> = (value: T) => U | Promise<U>;
+export type ErrorFunc<U> = (error: any) => U | Promise<U>;
+export type CancelFunc = (context: any) => void;
+
 export function Defer<T>(): Deferred<T> {
     return new Internal.SyncTask<T>();
 }
@@ -64,10 +68,12 @@ export interface Deferred<T> {
     reject(obj?: any): Deferred<T>;
 
     promise(): Promise<T>;
+
+    onCancel(callback: CancelFunc): Deferred<T>;
 }
 
 export interface Thenable<T> {
-    then<U>(successFunc: (value: T) => U | Promise<U>, errorFunc?: (error: any) => U | Promise<U>): Promise<U>;
+    then<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
 }
 
 export interface Promise<T> extends Thenable<T> {
@@ -75,31 +81,39 @@ export interface Promise<T> extends Thenable<T> {
 
     always(func: (value: T) => any): Promise<T>;
 
-    done<U>(successFunc: (value: T) => U | Promise<U>): Promise<T>;
+    done<U>(successFunc: SuccessFunc<T, U>): Promise<T>;
 
-    fail<U>(errorFunc: (error: any) => U | Promise<U>): Promise<T>;
+    fail<U>(errorFunc: ErrorFunc<U>): Promise<T>;
+
+    // Will call any cancellation lambdas up the call chain, and reject a chain up the fail blocks
+    cancel(context?: any): void;
 }
 
 export module Internal {
-    export interface CallbackSet {
-        successFunc?: (T) => any;
-        failFunc?: (any) => any;
-        finallyFunc?: (any) => any;
+    export interface CallbackSet<T, U> {
+        successFunc?: SuccessFunc<T, U>;
+        failFunc?: ErrorFunc<U>;
+        finallyFunc?: (value: T) => any;
         task?: Deferred<any>;
     }
 
     export class SyncTask<T> implements Deferred<T>, Promise<T> {
         private _storedResolution: T;
         private _storedErrResolution: any;
-        protected _completedSuccess = false;
-        protected _completedFail = false;
+        private _completedSuccess = false;
+        private _completedFail = false;
+
+        private _cancelCallbacks: CancelFunc[] = [];
+        private _cancelContext: any;
+        private _wasCanceled = false;
 
         private _resolving = false;
 
-        private _storedCallbackSets: CallbackSet[] = [];
+        private _storedCallbackSets: CallbackSet<T, any>[] = [];
 
-        protected _addCallbackSet<U>(set: CallbackSet): Promise<U> {
-            const task = this._makeTask<U>();
+        private _addCallbackSet<U>(set: CallbackSet<T, U>): Promise<U> {
+            const task = new SyncTask<U>();
+            task.onCancel(this.cancel.bind(this));
             set.task = task;
             this._storedCallbackSets.push(set);
 
@@ -115,11 +129,17 @@ export module Internal {
             return task.promise();
         }
 
-        protected _makeTask<U>(): Deferred<U> {
-            return new SyncTask<U>();
+        onCancel(callback: CancelFunc): Deferred<T> {
+            if (this._wasCanceled) {
+                callback(this._cancelContext);
+            } else {
+                this._cancelCallbacks.push(callback);
+            }
+
+            return this;
         }
 
-        then<U>(successFunc: (value: T) => U | Deferred<U>, errorFunc?: (error: any) => U | Deferred<U>): Promise<U> {
+        then<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U> {
             return this._addCallbackSet<U>({
                 successFunc: successFunc,
                 failFunc: errorFunc
@@ -173,6 +193,21 @@ export module Internal {
             this._resolveFailures();
 
             return this;
+        }
+
+        cancel(context?: any): void {
+            if (this._wasCanceled) {
+                throw 'Already Canceled';
+            }
+
+            this._wasCanceled = true;
+            this._cancelContext = context;
+
+            if (this._cancelCallbacks.length > 0) {
+                this._cancelCallbacks.forEach(callback => {
+                    callback(this._cancelContext);
+                });
+            }
         }
 
         promise(): Promise<T> {

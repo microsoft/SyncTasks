@@ -10,6 +10,7 @@
  * context for its calls if you send them around the event loop and transactions
  * automatically close.
  */
+"use strict";
 exports.config = {
     // If we catch exceptions in success/fail blocks, it silently falls back to the fail case of the outer promise.
     // If this is global variable is true, it will also spit out a console.error with the exception for debugging.
@@ -59,11 +60,14 @@ var Internal;
         function SyncTask() {
             this._completedSuccess = false;
             this._completedFail = false;
+            this._cancelCallbacks = [];
+            this._wasCanceled = false;
             this._resolving = false;
             this._storedCallbackSets = [];
         }
         SyncTask.prototype._addCallbackSet = function (set) {
-            var task = this._makeTask();
+            var task = new SyncTask();
+            task.onCancel(this.cancel.bind(this));
             set.task = task;
             this._storedCallbackSets.push(set);
             // The _resolve* functions handle callbacks being added while they are running.
@@ -77,8 +81,14 @@ var Internal;
             }
             return task.promise();
         };
-        SyncTask.prototype._makeTask = function () {
-            return new SyncTask();
+        SyncTask.prototype.onCancel = function (callback) {
+            if (this._wasCanceled) {
+                callback(this._cancelContext);
+            }
+            else {
+                this._cancelCallbacks.push(callback);
+            }
+            return this;
         };
         SyncTask.prototype.then = function (successFunc, errorFunc) {
             return this._addCallbackSet({
@@ -124,6 +134,19 @@ var Internal;
             this._storedErrResolution = obj;
             this._resolveFailures();
             return this;
+        };
+        SyncTask.prototype.cancel = function (context) {
+            var _this = this;
+            if (this._wasCanceled) {
+                throw 'Already Canceled';
+            }
+            this._wasCanceled = true;
+            this._cancelContext = context;
+            if (this._cancelCallbacks.length > 0) {
+                this._cancelCallbacks.forEach(function (callback) {
+                    callback(_this._cancelContext);
+                });
+            }
         };
         SyncTask.prototype.promise = function () {
             return this;
@@ -243,7 +266,7 @@ var Internal;
             }
         };
         return SyncTask;
-    })();
+    }());
     Internal.SyncTask = SyncTask;
 })(Internal = exports.Internal || (exports.Internal = {}));
 function whenAll(tasks) {

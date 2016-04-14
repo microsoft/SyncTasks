@@ -15,6 +15,9 @@ export declare const config: {
     catchExceptions: boolean;
     exceptionHandler: (ex: Error) => void;
 };
+export declare type SuccessFunc<T, U> = (value: T) => U | Promise<U>;
+export declare type ErrorFunc<U> = (error: any) => U | Promise<U>;
+export declare type CancelFunc = (context: any) => void;
 export declare function Defer<T>(): Deferred<T>;
 export declare function Resolved<T>(val?: T): Promise<T>;
 export declare function Rejected<T>(val?: any): Promise<T>;
@@ -22,39 +25,45 @@ export interface Deferred<T> {
     resolve(obj?: T): Deferred<T>;
     reject(obj?: any): Deferred<T>;
     promise(): Promise<T>;
+    onCancel(callback: CancelFunc): Deferred<T>;
 }
 export interface Thenable<T> {
-    then<U>(successFunc: (value: T) => U | Promise<U>, errorFunc?: (error: any) => U | Promise<U>): Promise<U>;
+    then<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
 }
 export interface Promise<T> extends Thenable<T> {
     finally(func: (value: T) => any): Promise<T>;
     always(func: (value: T) => any): Promise<T>;
-    done<U>(successFunc: (value: T) => U | Promise<U>): Promise<T>;
-    fail<U>(errorFunc: (error: any) => U | Promise<U>): Promise<T>;
+    done<U>(successFunc: SuccessFunc<T, U>): Promise<T>;
+    fail<U>(errorFunc: ErrorFunc<U>): Promise<T>;
+    cancel(context?: any): void;
 }
 export declare module Internal {
-    interface CallbackSet {
-        successFunc?: (T) => any;
-        failFunc?: (any) => any;
-        finallyFunc?: (any) => any;
+    interface CallbackSet<T, U> {
+        successFunc?: SuccessFunc<T, U>;
+        failFunc?: ErrorFunc<U>;
+        finallyFunc?: (value: T) => any;
         task?: Deferred<any>;
     }
     class SyncTask<T> implements Deferred<T>, Promise<T> {
         private _storedResolution;
         private _storedErrResolution;
-        protected _completedSuccess: boolean;
-        protected _completedFail: boolean;
+        private _completedSuccess;
+        private _completedFail;
+        private _cancelCallbacks;
+        private _cancelContext;
+        private _wasCanceled;
         private _resolving;
         private _storedCallbackSets;
-        protected _addCallbackSet<U>(set: CallbackSet): Promise<U>;
-        protected _makeTask<U>(): Deferred<U>;
-        then<U>(successFunc: (value: T) => U | Deferred<U>, errorFunc?: (error: any) => U | Deferred<U>): Promise<U>;
+        private _addCallbackSet<U>(set);
+        onCancel(callback: CancelFunc): Deferred<T>;
+        then<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
         always(func: (value: T) => any): Promise<T>;
         finally(func: (value: T) => any): Promise<T>;
         done(successFunc: (value: T) => void): Promise<T>;
         fail(errorFunc: (error: any) => void): Promise<T>;
         resolve(obj?: T): Deferred<T>;
         reject(obj?: any): Deferred<T>;
+        cancel(context?: any): void;
         promise(): Promise<T>;
         private _resolveSuccesses();
         private _resolveFailures();
