@@ -15,8 +15,8 @@ export declare const config: {
     catchExceptions: boolean;
     exceptionHandler: (ex: Error) => void;
 };
-export declare type SuccessFunc<T, U> = (value: T) => U | Promise<U>;
-export declare type ErrorFunc<U> = (error: any) => U | Promise<U>;
+export declare type SuccessFunc<T, U> = (value: T) => U | Thenable<U>;
+export declare type ErrorFunc<U> = (error: any) => U | Thenable<U>;
 export declare type CancelFunc = (context: any) => void;
 export declare function Defer<T>(): Deferred<T>;
 export declare function Resolved<T>(val?: T): Promise<T>;

@@ -46,8 +46,8 @@ function run<T, C extends any>(trier: () => T, catcher?: (e: Error) => C): T | C
     }
 }
 
-export type SuccessFunc<T, U> = (value: T) => U | Promise<U>;
-export type ErrorFunc<U> = (error: any) => U | Promise<U>;
+export type SuccessFunc<T, U> = (value: T) => U | Thenable<U>;
+export type ErrorFunc<U> = (error: any) => U | Thenable<U>;
 export type CancelFunc = (context: any) => void;
 
 export function Defer<T>(): Deferred<T> {
