@@ -31,43 +31,10 @@ export interface Thenable<T> {
     then<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
 }
 export interface Promise<T> extends Thenable<T> {
-    finally(func: (value: T) => any): Promise<T>;
-    always(func: (value: T) => any): Promise<T>;
-    done<U>(successFunc: SuccessFunc<T, U>): Promise<T>;
-    fail<U>(errorFunc: ErrorFunc<U>): Promise<T>;
+    finally(func: (value: T|any) => void): Promise<T>;
+    always<U>(func: (value: T|any) => U | Thenable<U>): Promise<U>;
+    done(successFunc: (value: T) => void): Promise<T>;
+    fail(errorFunc: (error: any) => void): Promise<T>;
     cancel(context?: any): void;
-}
-export declare module Internal {
-    interface CallbackSet<T, U> {
-        successFunc?: SuccessFunc<T, U>;
-        failFunc?: ErrorFunc<U>;
-        finallyFunc?: (value: T) => any;
-        task?: Deferred<any>;
-    }
-    class SyncTask<T> implements Deferred<T>, Promise<T> {
-        private _storedResolution;
-        private _storedErrResolution;
-        private _completedSuccess;
-        private _completedFail;
-        private _cancelCallbacks;
-        private _cancelContext;
-        private _wasCanceled;
-        private _resolving;
-        private _storedCallbackSets;
-        private _addCallbackSet<U>(set);
-        onCancel(callback: CancelFunc): Deferred<T>;
-        then<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
-        always(func: (value: T) => any): Promise<T>;
-        finally(func: (value: T) => any): Promise<T>;
-        done(successFunc: (value: T) => void): Promise<T>;
-        fail(errorFunc: (error: any) => void): Promise<T>;
-        resolve(obj?: T): Deferred<T>;
-        reject(obj?: any): Deferred<T>;
-        cancel(context?: any): void;
-        promise(): Promise<T>;
-        private _resolveSuccesses();
-        private _resolveFailures();
-        private _handleException(e, message);
-    }
 }
 export declare function whenAll(tasks: Promise<any>[]): Promise<any[]>;

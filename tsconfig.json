@@ -3,17 +3,16 @@
         "declaration": false,
         "noResolve": false,
         "module": "commonjs",
-        "target": "es5"
+        "target": "es5",
+        "outDir": "dist/",
+        "noImplicitReturns": true,
+        "noImplicitAny": true
     },
     
     "filesGlob": [
         "src/**/*{ts,tsx}",
         "src/typings/**/*.d.ts"
     ],
-    
-    "compilerOptions": {
-        "outDir": "dist/"
-    },
     
     "exclude": [
         "dist",

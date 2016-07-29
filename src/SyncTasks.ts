@@ -24,23 +24,20 @@ export const config = {
     exceptionHandler: <(ex: Error) => void>null
 };
 
-function isThenable(object): boolean {
+function isThenable(object: any): boolean {
     return object !== null && object !== void 0 && typeof object.then === 'function';
-}
-
-// Any try/catch/finally block in a function makes the entire function ineligible for optimization is most JS engines.
-function attempt<T, C extends any>(trier: () => T, catcher?: (e: Error) => C): T|C {
-    try {
-        return trier();
-    } catch (e) {
-        return catcher(e);
-    }
 }
 
 // Runs trier(). If config.catchExceptions is set then any exception is caught and handed to catcher.
 function run<T, C extends any>(trier: () => T, catcher?: (e: Error) => C): T | C {
     if (config.catchExceptions) {
-        return attempt(trier, catcher);
+        // Any try/catch/finally block in a function makes the entire function ineligible for optimization is most JS engines.
+        // Make sure this stays in a small/quick function, or break out into its own function.
+        try {
+            return trier();
+        } catch (e) {
+            return catcher(e);
+        }
     } else {
         return trier();
     }
@@ -77,23 +74,22 @@ export interface Thenable<T> {
 }
 
 export interface Promise<T> extends Thenable<T> {
-    finally(func: (value: T) => any): Promise<T>;
+    finally(func: (value: T|any) => void): Promise<T>;
+    
+    always<U>(func: (value: T|any) => U | Thenable<U>): Promise<U>;
 
-    always(func: (value: T) => any): Promise<T>;
+    done(successFunc: (value: T) => void): Promise<T>;
 
-    done<U>(successFunc: SuccessFunc<T, U>): Promise<T>;
-
-    fail<U>(errorFunc: ErrorFunc<U>): Promise<T>;
-
+    fail(errorFunc: (error: any) => void): Promise<T>;
+    
     // Will call any cancellation lambdas up the call chain, and reject a chain up the fail blocks
     cancel(context?: any): void;
 }
 
-export module Internal {
+module Internal {
     export interface CallbackSet<T, U> {
         successFunc?: SuccessFunc<T, U>;
         failFunc?: ErrorFunc<U>;
-        finallyFunc?: (value: T) => any;
         task?: Deferred<any>;
     }
 
@@ -146,8 +142,8 @@ export module Internal {
             });
         }
 
-        always(func: (value: T) => any): Promise<T> {
-            return this._addCallbackSet<T>({
+        always<U>(func: (value: T|any) => U | Promise<U>): Promise<U> {
+            return this._addCallbackSet<U>({
                 successFunc: func,
                 failFunc: func
             });
@@ -155,10 +151,9 @@ export module Internal {
 
         // Finally should let you inspect the value of the promise as it passes through without affecting the then chaining
         // i.e. a failed promise with a finally after it should then chain to the fail case of the next then
-        finally(func: (value: T) => any): Promise<T> {
-            return this._addCallbackSet<T>({
-                finallyFunc: func
-            });
+        finally(func: (value: T|any) => void): Promise<T> {
+            this.always(func);
+            return this;
         }
 
         done(successFunc: (value: T) => void): Promise<T> {
@@ -217,111 +212,65 @@ export module Internal {
         private _resolveSuccesses() {
             this._resolving = true;
 
-            // Only iterate over the current list of callbacks.
-            const callbacks = this._storedCallbackSets;
-            this._storedCallbackSets = [];
+            // New callbacks can be added as the current callbacks run: use a loop to get through all of them.
+            while (this._storedCallbackSets.length) {
+                // Only iterate over the current list of callbacks.
+                const callbacks = this._storedCallbackSets;
+                this._storedCallbackSets = [];
 
-            callbacks.forEach(callback => {
-                if (callback.successFunc) {
-                    run(() => {
-                        const ret = callback.successFunc(this._storedResolution);
-                        if (isThenable(ret)) {
-                            const newTask = <Thenable<any>>ret;
-                            // The success block of a then returned a new promise, so 
-                            newTask.then(r => { callback.task.resolve(r); }, e => { callback.task.reject(e); });
-                        } else {
-                            callback.task.resolve(ret);
-                        }
-                    }, e => {
-                        this._handleException(e, 'SyncTask caught exception in success block: ' + e.toString());
-                        callback.task.reject(e);
-                    });
-                } else if (callback.finallyFunc) {
-                    run(() => {
-                        const ret = callback.finallyFunc(this._storedResolution);
-                        if (isThenable(ret)) {
-                            const newTask = <Thenable<any>>ret;
-
-                            // The finally returned a new promise, so wait for it to run first
-                            const alwaysMethod = () => { callback.task.resolve(this._storedResolution); };
-
-                            // We use "then" here to emulate "always" because isThenable only
-                            // checks if the object has a "then", not an "always".
-                            newTask.then(alwaysMethod, alwaysMethod);
-                        } else {
-                            callback.task.resolve(this._storedResolution);
-                        }
-                    }, e => {
-                        this._handleException(e, 'SyncTask caught exception in success finally block: ' + e.toString());
+                callbacks.forEach(callback => {
+                    if (callback.successFunc) {
+                        run(() => {
+                            const ret = callback.successFunc(this._storedResolution);
+                            if (isThenable(ret)) {
+                                const newTask = <Thenable<any>>ret;
+                                // The success block of a then returned a new promise, so 
+                                newTask.then(r => { callback.task.resolve(r); }, e => { callback.task.reject(e); });
+                            } else {
+                                callback.task.resolve(ret);
+                            }
+                        }, e => {
+                            this._handleException(e, 'SyncTask caught exception in success block: ' + e.toString());
+                            callback.task.reject(e);
+                        });
+                    } else {
                         callback.task.resolve(this._storedResolution);
-                    });
-                } else {
-                    callback.task.resolve(this._storedResolution);
-                }
-            });
-
-            this._resolving = false;
-
-            // Handle any callbacks added while the above loop was running.
-            if (this._storedCallbackSets.length) {
-                this._resolveSuccesses();
+                    }
+                });
             }
+            this._resolving = false;
         }
 
         private _resolveFailures() {
             this._resolving = true;
 
-            // Only iterate over the current list of callbacks.
-            const callbacks = this._storedCallbackSets;
-            this._storedCallbackSets = [];
+            // New callbacks can be added as the current callbacks run: use a loop to get through all of them.
+            while (this._storedCallbackSets.length) {
+                // Only iterate over the current list of callbacks.
+                const callbacks = this._storedCallbackSets;
+                this._storedCallbackSets = [];
 
-            callbacks.forEach(callback => {
-                if (callback.failFunc) {
-                    run(() => {
-                        const ret = callback.failFunc(this._storedErrResolution);
-                        if (isThenable(ret)) {
-                            const newTask = <Thenable<any>>ret;
-                            newTask.then(r => { callback.task.resolve(r); }, e => { callback.task.reject(e); });
-                        } else if (typeof (ret) !== 'undefined' && ret !== null) {
-                            callback.task.resolve(ret);
-                        } else {
-                            callback.task.reject(void 0);
-                        }
-                    }, e => {
-                        this._handleException(e, 'SyncTask caught exception in failure block: ' + e.toString());
-                        callback.task.reject(e);
-                    });
-                } else if (callback.finallyFunc) {
-                    run(() => {
-                        const ret = callback.finallyFunc(this._storedErrResolution);
-                        if (isThenable(ret)) {
-                            const newTask = <Thenable<any>>ret;
-
-                            // The finally returned a new promise, so wait for it to run first
-                            const alwaysMethod = () => { callback.task.reject(this._storedErrResolution); };
-
-                            // We use "then" here to emulate "always" because isThenable only
-                            // checks if the object has a "then", not an "always".
-                            newTask.then(alwaysMethod, alwaysMethod);
-
-                        } else {
-                            callback.task.reject(this._storedErrResolution);
-                        }
-                    }, e => {
-                        this._handleException(e, 'SyncTask caught exception in failure finally block: ' + e.toString());
+                callbacks.forEach(callback => {
+                    if (callback.failFunc) {
+                        run(() => {
+                            const ret = callback.failFunc(this._storedErrResolution);
+                            if (isThenable(ret)) {
+                                const newTask = <Thenable<any>>ret;
+                                newTask.then(r => { callback.task.resolve(r); }, e => { callback.task.reject(e); });
+                            } else {
+                                // The failure has been handled: ret is the resolved value.
+                                callback.task.resolve(ret);
+                            }
+                        }, e => {
+                            this._handleException(e, 'SyncTask caught exception in failure block: ' + e.toString());
+                            callback.task.reject(e);
+                        });
+                    } else {
                         callback.task.reject(this._storedErrResolution);
-                    });
-                } else {
-                    callback.task.reject(this._storedErrResolution);
-                }
-            });
-
-            this._resolving = false;
-
-            // Handle any callbacks added while the above loop was running.
-            if (this._storedCallbackSets.length) {
-                this._resolveFailures();
+                    }
+                });
             }
+            this._resolving = false;
         }
 
         private _handleException(e: Error, message: string): void {

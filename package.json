@@ -1,15 +1,16 @@
 {
 	"name": "synctasks",
-	"version": "0.2.1",
+	"version": "0.2.2",
 	"description": "An explicitly non-A+ Promise library that resolves promises synchronously",
 	"author": "David de Regt <David.de.Regt@microsoft.com>",
 	"scripts": {
 		"test": "mocha dist/tests/synctaskstests.js",
-	        "webtest": "webpack",
-	        "build": "tsc"
+		"webtest": "webpack",
+		"build": "tsc"
 	},
 	"main": "dist/SyncTasks.js",
 	"devDependencies": {
+		"mocha": "^2.3.4",
 		"ts-loader": "^0.8.1",
 		"typescript": "^1.8.9",
 		"webpack": "^1.12.14"

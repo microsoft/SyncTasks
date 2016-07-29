@@ -63,12 +63,12 @@ describe('SyncTasks', function () {
         task.resolve(3);
     });
 
-    it('Chain from fail to success with value', (done) => {
+    it('Chain from error to success with value', (done) => {
         const task = SyncTasks.Defer<number>();
 
         task.promise().then(val => {
             assert(false);
-            return 3;
+            return -1;
         }, err => {
             assert.equal(err, 2);
             return 4;
@@ -87,10 +87,10 @@ describe('SyncTasks', function () {
 
         task.promise().then(val => {
             assert.equal(val, 3);
-            return SyncTasks.Defer<number>().resolve(4);
+            return SyncTasks.Resolved<number>(4);
         }, err => {
             assert(false);
-            return null;
+            return -1;
         }).then(val => {
             assert.equal(val, 4);
             done();
@@ -101,12 +101,12 @@ describe('SyncTasks', function () {
         task.resolve(3);
     });
 
-    it('Chain from fail to success with promise', (done) => {
+    it('Chain from error to success with promise', (done) => {
         const task = SyncTasks.Defer<number>();
 
         task.promise().then(val => {
             assert(false);
-            return null;
+            return -1;
         }, err => {
             assert.equal(err, 3);
             return SyncTasks.Resolved(4);
@@ -120,7 +120,7 @@ describe('SyncTasks', function () {
         task.reject(3);
     });
 
-    it('Chain from success to fail with promise', (done) => {
+    it('Chain from success to error with promise', (done) => {
         const task = SyncTasks.Defer<number>();
 
         task.promise().then(val => {
@@ -128,7 +128,7 @@ describe('SyncTasks', function () {
             return SyncTasks.Rejected(4);
         }, err => {
             assert(false);
-            return void 0;
+            return -1;
         }).then(val => {
             assert(false);
         }, err => {
@@ -139,12 +139,12 @@ describe('SyncTasks', function () {
         task.resolve(2);
     });
 
-    it('Chain from fail to fail with promise', (done) => {
+    it('Chain from error to error with promise', (done) => {
         const task = SyncTasks.Defer<number>();
 
         task.promise().then(val => {
             assert(false);
-            return void 0;
+            return -1;
         }, err => {
             assert.equal(err, 2);
             return SyncTasks.Rejected(4);
@@ -181,7 +181,7 @@ describe('SyncTasks', function () {
         task.resolve(3);
     });
 
-    it('Exception in success to fail', (done) => {
+    it('Exception in success to error', (done) => {
         const task = SyncTasks.Defer<number>();
 
         SyncTasks.config.exceptionsToConsole = false;
@@ -189,7 +189,6 @@ describe('SyncTasks', function () {
         task.promise().then(val => {
             const blah: any = null;
             blah.blowup();
-            return void 0;
         }, err => {
             assert(false);
         }).then(val => {
@@ -202,7 +201,7 @@ describe('SyncTasks', function () {
         task.resolve(3);
     });
 
-    it('Exception in fail to fail', (done) => {
+    it('Exception in error to error', (done) => {
         const task = SyncTasks.Defer<number>();
 
         SyncTasks.config.exceptionsToConsole = false;
@@ -212,7 +211,6 @@ describe('SyncTasks', function () {
         }, err => {
             const blah: any = null;
             blah.blowup();
-            return void 0;
         }).then(val => {
             assert(false);
         }, err => {
@@ -223,6 +221,56 @@ describe('SyncTasks', function () {
         task.reject(3);
     });
 
+    it('"done" basic', (done) => {
+        const task = SyncTasks.Defer<number>();
+
+        task.promise().then(val => {
+            return 4;
+        }, err => {
+            assert(false);
+            return -1;
+        }).done(val => {
+            assert.equal(val, 4);
+            return 2;   // should be ignored
+        }).then(val => {
+            assert.equal(val, 4);
+            done();
+        }, err => {
+            assert(false);
+        });
+
+        task.resolve(3);
+    });
+
+    it('"done" does not chain', (done) => {
+        const task = SyncTasks.Defer<number>();
+        const innertask = SyncTasks.Defer<number>();
+
+        let innerFinished = false;
+
+        task.promise().then(val => {
+            return 4;
+        }, err => {
+            assert(false);
+            return -1;
+        }).done(val => {
+            assert.equal(val, 4);
+            return innertask.promise().then(() => {
+                innerFinished = true;
+                return 2;   // should be ignored
+            });
+        }).then(val => {
+            assert(!innerFinished);
+            assert.equal(val, 4);
+            done();
+        }, err => {
+            assert(false);
+        });
+
+        task.resolve(3);
+        innertask.resolve(1);
+    });
+
     it('Finally basic', (done) => {
         const task = SyncTasks.Defer<number>();
 
@@ -230,7 +278,7 @@ describe('SyncTasks', function () {
             return 4;
         }, err => {
             assert(false);
-            return void 0;
+            return -1;
         }).finally(val => {
             assert.equal(val, 4);
             return 2;   // should be ignored
@@ -244,26 +292,25 @@ describe('SyncTasks', function () {
         task.resolve(3);
     });
 
-    it('Finally with success chaining', (done) => {
+    it('Finally does not chain', (done) => {
         const task = SyncTasks.Defer<number>();
+        const innertask = SyncTasks.Defer<number>();
 
-        let innerWorked = false;
+        let innerFinished = false;
 
         task.promise().then(val => {
             return 4;
         }, err => {
             assert(false);
-            return void 0;
+            return -1;
         }).finally(val => {
             assert.equal(val, 4);
-            const newtask = SyncTasks.Defer<number>();
-            newtask.resolve(5);   // should be ignored
-            return newtask.promise().then(val2 => {
-                // this must run before the outer resolution
-                innerWorked = true;
+            return innertask.promise().then(() => {
+                innerFinished = true;
+                return 2;   // should be ignored
             });
         }).then(val => {
-            assert(innerWorked);
+            assert(!innerFinished);
             assert.equal(val, 4);
             done();
         }, err => {
@@ -271,33 +318,7 @@ describe('SyncTasks', function () {
         });
 
         task.resolve(3);
-    });
-
-    it('Finally with failure chaining', (done) => {
-        const task = SyncTasks.Defer<number>();
-
-        let innerWorked = false;
-
-        task.promise().then(val => {
-            assert(false);
-            return void 0;
-        }).finally(val => {
-            assert.equal(val, 3);
-            const newtask = SyncTasks.Defer<number>();
-            newtask.resolve(5);   // should be ignored
-            return newtask.promise().then(val2 => {
-                // this must run before the outer resolution
-                innerWorked = true;
-            });
-        }).then(val => {
-            assert(false);
-        }, err => {
-            assert(innerWorked);
-            assert.equal(err, 3);
-            done();
-        });
-
-        task.reject(3);
+        innertask.resolve(1);
     });
 
     it('whenAll basic success', (done) => {
@@ -339,6 +360,7 @@ describe('SyncTasks', function () {
 
     it('whenAll zero tasks', (done) => {
         SyncTasks.whenAll([]).then(rets => {
+            assert.equal(rets.length, 0);
             done();
         }, err => {
             assert(false);
@@ -347,6 +369,7 @@ describe('SyncTasks', function () {
 
     it('whenAll single null task', (done) => {
         SyncTasks.whenAll([null]).then(rets => {
+            assert.equal(rets.length, 1);
             done();
         }, err => {
             assert(false);
@@ -357,6 +380,7 @@ describe('SyncTasks', function () {
         const task = SyncTasks.Defer<number>();
 
         SyncTasks.whenAll([null, task.promise()]).then(rets => {
+            assert.equal(rets.length, 2);
             done();
         }, err => {
             assert(false);
@@ -536,7 +560,7 @@ describe('SyncTasks', function () {
             assert.equal(err, 5);
             assert(canceled);
             assert.equal(cancelContext, 4);
-            return void 0;
+            return -1;
         });
         secPromise.cancel(4);
 
