@@ -19,24 +19,25 @@ exports.config = {
     // Disable this for debugging when you'd rather the debugger caught the exception synchronously rather than
     // digging through a stack trace.
     catchExceptions: true,
-    exceptionHandler: null
+    exceptionHandler: null,
+    // If an ErrorFunc is not added to the task (then, catch, always) before the task rejects or synchonously
+    // after that, then this function is called with the error. Default throws the error.
+    unhandledErrorHandler: (function (err) { throw err; })
 };
 function isThenable(object) {
     return object !== null && object !== void 0 && typeof object.then === 'function';
 }
-// Any try/catch/finally block in a function makes the entire function ineligible for optimization is most JS engines.
-function attempt(trier, catcher) {
-    try {
-        return trier();
-    }
-    catch (e) {
-        return catcher(e);
-    }
-}
 // Runs trier(). If config.catchExceptions is set then any exception is caught and handed to catcher.
 function run(trier, catcher) {
     if (exports.config.catchExceptions) {
-        return attempt(trier, catcher);
+        // Any try/catch/finally block in a function makes the entire function ineligible for optimization is most JS engines.
+        // Make sure this stays in a small/quick function, or break out into its own function.
+        try {
+            return trier();
+        }
+        catch (e) {
+            return catcher(e);
+        }
     }
     else {
         return trier();
@@ -64,12 +65,16 @@ var Internal;
             this._wasCanceled = false;
             this._resolving = false;
             this._storedCallbackSets = [];
+            // 'Handled' just means there was a callback set added.
+            // Note: If that callback does not handle the error then that callback's task will be 'unhandled' instead of this one.
+            this._errorWillBeHandled = false;
         }
         SyncTask.prototype._addCallbackSet = function (set) {
             var task = new SyncTask();
             task.onCancel(this.cancel.bind(this));
             set.task = task;
             this._storedCallbackSets.push(set);
+            this._errorWillBeHandled = true;
             // The _resolve* functions handle callbacks being added while they are running.
             if (!this._resolving) {
                 if (this._completedSuccess) {
@@ -96,6 +101,11 @@ var Internal;
                 failFunc: errorFunc
             });
         };
+        SyncTask.prototype.catch = function (errorFunc) {
+            return this._addCallbackSet({
+                failFunc: errorFunc
+            });
+        };
         SyncTask.prototype.always = function (func) {
             return this._addCallbackSet({
                 successFunc: func,
@@ -105,9 +115,8 @@ var Internal;
         // Finally should let you inspect the value of the promise as it passes through without affecting the then chaining
         // i.e. a failed promise with a finally after it should then chain to the fail case of the next then
         SyncTask.prototype.finally = function (func) {
-            return this._addCallbackSet({
-                finallyFunc: func
-            });
+            this.always(func);
+            return this;
         };
         SyncTask.prototype.done = function (successFunc) {
             this.then(successFunc);
@@ -133,7 +142,29 @@ var Internal;
             this._completedFail = true;
             this._storedErrResolution = obj;
             this._resolveFailures();
+            SyncTask._enforceErrorHandled(this);
             return this;
+        };
+        // Make sure any rejected task has its failured handled.
+        SyncTask._enforceErrorHandled = function (task) {
+            if (task._errorWillBeHandled) {
+                return;
+            }
+            SyncTask._rejectedTasks.push(task);
+            // Wait for some async time in the future to check these tasks.
+            if (!SyncTask._enforceErrorHandledTimer) {
+                SyncTask._enforceErrorHandledTimer = setTimeout(function () {
+                    SyncTask._enforceErrorHandledTimer = null;
+                    var rejectedTasks = SyncTask._rejectedTasks;
+                    SyncTask._rejectedTasks = [];
+                    rejectedTasks.forEach(function (rejectedTask, i) {
+                        if (!rejectedTask._errorWillBeHandled) {
+                            // Unhandled!
+                            exports.config.unhandledErrorHandler(rejectedTask._storedErrResolution);
+                        }
+                    });
+                }, 0);
+            }
         };
         SyncTask.prototype.cancel = function (context) {
             var _this = this;
@@ -154,108 +185,66 @@ var Internal;
         SyncTask.prototype._resolveSuccesses = function () {
             var _this = this;
             this._resolving = true;
-            // Only iterate over the current list of callbacks.
-            var callbacks = this._storedCallbackSets;
-            this._storedCallbackSets = [];
-            callbacks.forEach(function (callback) {
-                if (callback.successFunc) {
-                    run(function () {
-                        var ret = callback.successFunc(_this._storedResolution);
-                        if (isThenable(ret)) {
-                            var newTask = ret;
-                            // The success block of a then returned a new promise, so 
-                            newTask.then(function (r) { callback.task.resolve(r); }, function (e) { callback.task.reject(e); });
-                        }
-                        else {
-                            callback.task.resolve(ret);
-                        }
-                    }, function (e) {
-                        _this._handleException(e, 'SyncTask caught exception in success block: ' + e.toString());
-                        callback.task.reject(e);
-                    });
-                }
-                else if (callback.finallyFunc) {
-                    run(function () {
-                        var ret = callback.finallyFunc(_this._storedResolution);
-                        if (isThenable(ret)) {
-                            var newTask = ret;
-                            // The finally returned a new promise, so wait for it to run first
-                            var alwaysMethod = function () { callback.task.resolve(_this._storedResolution); };
-                            // We use "then" here to emulate "always" because isThenable only
-                            // checks if the object has a "then", not an "always".
-                            newTask.then(alwaysMethod, alwaysMethod);
-                        }
-                        else {
-                            callback.task.resolve(_this._storedResolution);
-                        }
-                    }, function (e) {
-                        _this._handleException(e, 'SyncTask caught exception in success finally block: ' + e.toString());
+            // New callbacks can be added as the current callbacks run: use a loop to get through all of them.
+            while (this._storedCallbackSets.length) {
+                // Only iterate over the current list of callbacks.
+                var callbacks = this._storedCallbackSets;
+                this._storedCallbackSets = [];
+                callbacks.forEach(function (callback) {
+                    if (callback.successFunc) {
+                        run(function () {
+                            var ret = callback.successFunc(_this._storedResolution);
+                            if (isThenable(ret)) {
+                                var newTask = ret;
+                                // The success block of a then returned a new promise, so 
+                                newTask.then(function (r) { callback.task.resolve(r); }, function (e) { callback.task.reject(e); });
+                            }
+                            else {
+                                callback.task.resolve(ret);
+                            }
+                        }, function (e) {
+                            _this._handleException(e, 'SyncTask caught exception in success block: ' + e.toString());
+                            callback.task.reject(e);
+                        });
+                    }
+                    else {
                         callback.task.resolve(_this._storedResolution);
-                    });
-                }
-                else {
-                    callback.task.resolve(_this._storedResolution);
-                }
-            });
-            this._resolving = false;
-            // Handle any callbacks added while the above loop was running.
-            if (this._storedCallbackSets.length) {
-                this._resolveSuccesses();
+                    }
+                });
             }
+            this._resolving = false;
         };
         SyncTask.prototype._resolveFailures = function () {
             var _this = this;
             this._resolving = true;
-            // Only iterate over the current list of callbacks.
-            var callbacks = this._storedCallbackSets;
-            this._storedCallbackSets = [];
-            callbacks.forEach(function (callback) {
-                if (callback.failFunc) {
-                    run(function () {
-                        var ret = callback.failFunc(_this._storedErrResolution);
-                        if (isThenable(ret)) {
-                            var newTask = ret;
-                            newTask.then(function (r) { callback.task.resolve(r); }, function (e) { callback.task.reject(e); });
-                        }
-                        else if (typeof (ret) !== 'undefined' && ret !== null) {
-                            callback.task.resolve(ret);
-                        }
-                        else {
-                            callback.task.reject(void 0);
-                        }
-                    }, function (e) {
-                        _this._handleException(e, 'SyncTask caught exception in failure block: ' + e.toString());
-                        callback.task.reject(e);
-                    });
-                }
-                else if (callback.finallyFunc) {
-                    run(function () {
-                        var ret = callback.finallyFunc(_this._storedErrResolution);
-                        if (isThenable(ret)) {
-                            var newTask = ret;
-                            // The finally returned a new promise, so wait for it to run first
-                            var alwaysMethod = function () { callback.task.reject(_this._storedErrResolution); };
-                            // We use "then" here to emulate "always" because isThenable only
-                            // checks if the object has a "then", not an "always".
-                            newTask.then(alwaysMethod, alwaysMethod);
-                        }
-                        else {
-                            callback.task.reject(_this._storedErrResolution);
-                        }
-                    }, function (e) {
-                        _this._handleException(e, 'SyncTask caught exception in failure finally block: ' + e.toString());
+            // New callbacks can be added as the current callbacks run: use a loop to get through all of them.
+            while (this._storedCallbackSets.length) {
+                // Only iterate over the current list of callbacks.
+                var callbacks = this._storedCallbackSets;
+                this._storedCallbackSets = [];
+                callbacks.forEach(function (callback) {
+                    if (callback.failFunc) {
+                        run(function () {
+                            var ret = callback.failFunc(_this._storedErrResolution);
+                            if (isThenable(ret)) {
+                                var newTask = ret;
+                                newTask.then(function (r) { callback.task.resolve(r); }, function (e) { callback.task.reject(e); });
+                            }
+                            else {
+                                // The failure has been handled: ret is the resolved value.
+                                callback.task.resolve(ret);
+                            }
+                        }, function (e) {
+                            _this._handleException(e, 'SyncTask caught exception in failure block: ' + e.toString());
+                            callback.task.reject(e);
+                        });
+                    }
+                    else {
                         callback.task.reject(_this._storedErrResolution);
-                    });
-                }
-                else {
-                    callback.task.reject(_this._storedErrResolution);
-                }
-            });
-            this._resolving = false;
-            // Handle any callbacks added while the above loop was running.
-            if (this._storedCallbackSets.length) {
-                this._resolveFailures();
+                    }
+                });
             }
+            this._resolving = false;
         };
         SyncTask.prototype._handleException = function (e, message) {
             if (exports.config.exceptionsToConsole) {
@@ -265,18 +254,23 @@ var Internal;
                 exports.config.exceptionHandler(e);
             }
         };
+        SyncTask._rejectedTasks = [];
+        SyncTask._enforceErrorHandledTimer = null;
         return SyncTask;
     }());
     Internal.SyncTask = SyncTask;
-})(Internal = exports.Internal || (exports.Internal = {}));
-function whenAll(tasks) {
-    if (tasks.length === 0) {
+})(Internal || (Internal = {}));
+// Resolves once all of the given items resolve (non-thenables are 'resolved').
+// Rejects once any of the given thenables reject.
+// Note: resolves immediately if given no items.
+function all(items) {
+    if (items.length === 0) {
         return Resolved([]);
     }
     var outTask = Defer();
-    var countRemaining = tasks.length;
+    var countRemaining = items.length;
     var foundError = null;
-    var results = Array(tasks.length);
+    var results = Array(items.length);
     var checkFinish = function () {
         if (--countRemaining === 0) {
             if (foundError !== null) {
@@ -287,8 +281,9 @@ function whenAll(tasks) {
             }
         }
     };
-    tasks.forEach(function (task, index) {
-        if (isThenable(task)) {
+    items.forEach(function (item, index) {
+        if (isThenable(item)) {
+            var task = item;
             task.then(function (res) {
                 results[index] = res;
                 checkFinish();
@@ -301,10 +296,41 @@ function whenAll(tasks) {
         }
         else {
             // Not a task, so resolve directly with the item
-            results[index] = task;
+            results[index] = item;
             checkFinish();
         }
     });
     return outTask.promise();
 }
-exports.whenAll = whenAll;
+exports.all = all;
+// Resolves/Rejects once any of the given items resolve or reject (non-thenables are 'resolved').
+// Note: never resolves if given no items.
+function race(items) {
+    var outTask = Defer();
+    var hasSettled = false;
+    items.forEach(function (item) {
+        if (isThenable(item)) {
+            var task = item;
+            task.then(function (res) {
+                if (!hasSettled) {
+                    hasSettled = true;
+                    outTask.resolve(res);
+                }
+            }, function (err) {
+                if (!hasSettled) {
+                    hasSettled = true;
+                    outTask.reject(err);
+                }
+            });
+        }
+        else {
+            // Not a task, so resolve directly with the item
+            if (!hasSettled) {
+                hasSettled = true;
+                outTask.resolve(item);
+            }
+        }
+    });
+    return outTask.promise();
+}
+exports.race = race;

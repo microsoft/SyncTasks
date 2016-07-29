@@ -49,11 +49,11 @@ describe('SyncTasks', function () {
         });
         task.resolve(3);
     });
-    it('Chain from fail to success with value', function (done) {
+    it('Chain from error to success with value', function (done) {
         var task = SyncTasks.Defer();
         task.promise().then(function (val) {
             assert(false);
-            return 3;
+            return -1;
         }, function (err) {
             assert.equal(err, 2);
             return 4;
@@ -69,10 +69,10 @@ describe('SyncTasks', function () {
         var task = SyncTasks.Defer();
         task.promise().then(function (val) {
             assert.equal(val, 3);
-            return SyncTasks.Defer().resolve(4);
+            return SyncTasks.Resolved(4);
         }, function (err) {
             assert(false);
-            return null;
+            return -1;
         }).then(function (val) {
             assert.equal(val, 4);
             done();
@@ -81,11 +81,11 @@ describe('SyncTasks', function () {
         });
         task.resolve(3);
     });
-    it('Chain from fail to success with promise', function (done) {
+    it('Chain from error to success with promise', function (done) {
         var task = SyncTasks.Defer();
         task.promise().then(function (val) {
             assert(false);
-            return null;
+            return -1;
         }, function (err) {
             assert.equal(err, 3);
             return SyncTasks.Resolved(4);
@@ -97,14 +97,14 @@ describe('SyncTasks', function () {
         });
         task.reject(3);
     });
-    it('Chain from success to fail with promise', function (done) {
+    it('Chain from success to error with promise', function (done) {
         var task = SyncTasks.Defer();
         task.promise().then(function (val) {
             assert.equal(val, 2);
             return SyncTasks.Rejected(4);
         }, function (err) {
             assert(false);
-            return void 0;
+            return -1;
         }).then(function (val) {
             assert(false);
         }, function (err) {
@@ -113,11 +113,11 @@ describe('SyncTasks', function () {
         });
         task.resolve(2);
     });
-    it('Chain from fail to fail with promise', function (done) {
+    it('Chain from error to error with promise', function (done) {
         var task = SyncTasks.Defer();
         task.promise().then(function (val) {
             assert(false);
-            return void 0;
+            return -1;
         }, function (err) {
             assert.equal(err, 2);
             return SyncTasks.Rejected(4);
@@ -149,13 +149,12 @@ describe('SyncTasks', function () {
         });
         task.resolve(3);
     });
-    it('Exception in success to fail', function (done) {
+    it('Exception in success to error', function (done) {
         var task = SyncTasks.Defer();
         SyncTasks.config.exceptionsToConsole = false;
         task.promise().then(function (val) {
             var blah = null;
             blah.blowup();
-            return void 0;
         }, function (err) {
             assert(false);
         }).then(function (val) {
@@ -166,7 +165,7 @@ describe('SyncTasks', function () {
         });
         task.resolve(3);
     });
-    it('Exception in fail to fail', function (done) {
+    it('Exception in error to error', function (done) {
         var task = SyncTasks.Defer();
         SyncTasks.config.exceptionsToConsole = false;
         task.promise().then(function (val) {
@@ -174,7 +173,6 @@ describe('SyncTasks', function () {
         }, function (err) {
             var blah = null;
             blah.blowup();
-            return void 0;
         }).then(function (val) {
             assert(false);
         }, function (err) {
@@ -183,13 +181,56 @@ describe('SyncTasks', function () {
         });
         task.reject(3);
     });
+    it('"done" basic', function (done) {
+        var task = SyncTasks.Defer();
+        task.promise().then(function (val) {
+            return 4;
+        }, function (err) {
+            assert(false);
+            return -1;
+        }).done(function (val) {
+            assert.equal(val, 4);
+            return 2; // should be ignored
+        }).then(function (val) {
+            assert.equal(val, 4);
+            done();
+        }, function (err) {
+            assert(false);
+        });
+        task.resolve(3);
+    });
+    it('"done" does not chain', function (done) {
+        var task = SyncTasks.Defer();
+        var innertask = SyncTasks.Defer();
+        var innerFinished = false;
+        task.promise().then(function (val) {
+            return 4;
+        }, function (err) {
+            assert(false);
+            return -1;
+        }).done(function (val) {
+            assert.equal(val, 4);
+            return innertask.promise().then(function () {
+                innerFinished = true;
+                return 2; // should be ignored
+            });
+        }).then(function (val) {
+            assert(!innerFinished);
+            assert.equal(val, 4);
+            done();
+        }, function (err) {
+            assert(false);
+        });
+        task.resolve(3);
+        innertask.resolve(1);
+    });
     it('Finally basic', function (done) {
         var task = SyncTasks.Defer();
         task.promise().then(function (val) {
             return 4;
         }, function (err) {
             assert(false);
-            return void 0;
+            return -1;
         }).finally(function (val) {
             assert.equal(val, 4);
             return 2; // should be ignored
@@ -201,60 +242,37 @@ describe('SyncTasks', function () {
         });
         task.resolve(3);
     });
-    it('Finally with success chaining', function (done) {
+    it('Finally does not chain', function (done) {
         var task = SyncTasks.Defer();
-        var innerWorked = false;
+        var innertask = SyncTasks.Defer();
+        var innerFinished = false;
         task.promise().then(function (val) {
             return 4;
         }, function (err) {
             assert(false);
-            return void 0;
+            return -1;
         }).finally(function (val) {
             assert.equal(val, 4);
-            var newtask = SyncTasks.Defer();
-            newtask.resolve(5); // should be ignored
-            return newtask.promise().then(function (val2) {
-                // this must run before the outer resolution
-                innerWorked = true;
+            return innertask.promise().then(function () {
+                innerFinished = true;
+                return 2; // should be ignored
             });
         }).then(function (val) {
-            assert(innerWorked);
+            assert(!innerFinished);
             assert.equal(val, 4);
             done();
         }, function (err) {
             assert(false);
         });
         task.resolve(3);
+        innertask.resolve(1);
     });
-    it('Finally with failure chaining', function (done) {
-        var task = SyncTasks.Defer();
-        var innerWorked = false;
-        task.promise().then(function (val) {
-            assert(false);
-            return void 0;
-        }).finally(function (val) {
-            assert.equal(val, 3);
-            var newtask = SyncTasks.Defer();
-            newtask.resolve(5); // should be ignored
-            return newtask.promise().then(function (val2) {
-                // this must run before the outer resolution
-                innerWorked = true;
-            });
-        }).then(function (val) {
-            assert(false);
-        }, function (err) {
-            assert(innerWorked);
-            assert.equal(err, 3);
-            done();
-        });
-        task.reject(3);
-    });
-    it('whenAll basic success', function (done) {
+    it('"all" basic success', function (done) {
         var task = SyncTasks.Defer();
         var task2 = SyncTasks.Defer();
         var task3 = SyncTasks.Defer();
         var task4 = SyncTasks.Defer();
-        SyncTasks.whenAll([task.promise(), task2.promise(), task3.promise(), task4.promise()]).then(function (rets) {
+        SyncTasks.all([task.promise(), task2.promise(), task3.promise(), task4.promise()]).then(function (rets) {
             assert.equal(rets.length, 4);
             assert.equal(rets[0], 1);
             assert.equal(rets[1], 2);
@@ -269,10 +287,10 @@ describe('SyncTasks', function () {
         task3.resolve(3);
         task4.resolve(4);
     });
-    it('whenAll basic failure', function (done) {
+    it('"all" basic failure', function (done) {
         var task = SyncTasks.Defer();
         var task2 = SyncTasks.Defer();
-        SyncTasks.whenAll([task.promise(), task2.promise()]).then(function (rets) {
+        SyncTasks.all([task.promise(), task2.promise()]).then(function (rets) {
             assert(false);
         }, function (err) {
             done();
@@ -280,28 +298,85 @@ describe('SyncTasks', function () {
         task.resolve(1);
         task2.reject(2);
     });
-    it('whenAll zero tasks', function (done) {
-        SyncTasks.whenAll([]).then(function (rets) {
+    it('"all" zero tasks', function (done) {
+        SyncTasks.all([]).then(function (rets) {
+            assert.equal(rets.length, 0);
             done();
         }, function (err) {
             assert(false);
         });
     });
-    it('whenAll single null task', function (done) {
-        SyncTasks.whenAll([null]).then(function (rets) {
+    it('"all" single null task', function (done) {
+        SyncTasks.all([null]).then(function (rets) {
+            assert.equal(rets.length, 1);
             done();
         }, function (err) {
             assert(false);
         });
     });
-    it('whenAll tasks and nulls', function (done) {
+    it('"all" tasks and nulls', function (done) {
         var task = SyncTasks.Defer();
-        SyncTasks.whenAll([null, task.promise()]).then(function (rets) {
+        SyncTasks.all([null, task.promise()]).then(function (rets) {
+            assert.equal(rets.length, 2);
             done();
         }, function (err) {
             assert(false);
         });
         task.resolve(1);
+    });
+    it('"race" basic success', function (done) {
+        var task = SyncTasks.Defer();
+        var task2 = SyncTasks.Defer();
+        var task3 = SyncTasks.Defer();
+        var task4 = SyncTasks.Defer();
+        SyncTasks.race([task.promise(), task2.promise(), task3.promise(), task4.promise()]).then(function (ret) {
+            assert.equal(ret, 1);
+            done();
+        }, function (err) {
+            assert(false);
+        });
+        task.resolve(1);
+        task2.resolve(2);
+        task3.resolve(3);
+        task4.resolve(4);
+    });
+    it('"race" basic failure', function (done) {
+        var task = SyncTasks.Defer();
+        var task2 = SyncTasks.Defer();
+        SyncTasks.race([task.promise(), task2.promise()]).then(function (ret) {
+            assert(false);
+        }, function (err) {
+            assert.equal(err, 1);
+            done();
+        });
+        task.reject(1);
+        task2.resolve(2);
+    });
+    it('"race" zero tasks', function (done) {
+        SyncTasks.race([]).then(function (ret) {
+            assert(false);
+        }, function (err) {
+            assert(false);
+        });
+        setTimeout(function () { return done(); }, 20);
+    });
+    it('"race" single null task', function (done) {
+        SyncTasks.race([null]).then(function (ret) {
+            assert.equal(ret, null);
+            done();
+        }, function (err) {
+            assert(false);
+        });
+    });
+    it('"race" tasks and nulls', function (done) {
+        var task = SyncTasks.Defer();
+        SyncTasks.race([null, task.promise()]).then(function (ret) {
+            assert.equal(ret, null);
+            done();
+        }, function (err) {
+            assert(false);
+        });
+        task.resolve(2);
     });
     it('Callbacks resolve synchronously', function (done) {
         var task = SyncTasks.Defer();
@@ -353,6 +428,16 @@ describe('SyncTasks', function () {
         assert(rejectedCount === 2);
         done();
     });
+    it('Failure without error callback will use unhandledErrorHandler', function (done) {
+        var oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
+        SyncTasks.config.unhandledErrorHandler = function () {
+            SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
+            done();
+        };
+        SyncTasks.Rejected().then(function () {
+            assert(false);
+        });
+    });
     it('Add callback while resolving', function (done) {
         var task = SyncTasks.Defer();
         var promise = task.promise();
@@ -372,7 +457,7 @@ describe('SyncTasks', function () {
             assert(false);
         });
         task.resolve(1);
-        SyncTasks.whenAll([innerTask1.promise(), innerTask2.promise()]).then(function (rets) {
+        SyncTasks.all([innerTask1.promise(), innerTask2.promise()]).then(function (rets) {
             assert(rets.length === 2);
             assert(rets[0] === 1);
             assert(rets[1] === 2);
@@ -400,7 +485,7 @@ describe('SyncTasks', function () {
             innerTask1.resolve(++rejectedCount);
         });
         task.reject(1);
-        SyncTasks.whenAll([innerTask1.promise(), innerTask2.promise()]).then(function (rets) {
+        SyncTasks.all([innerTask1.promise(), innerTask2.promise()]).then(function (rets) {
             assert(rets.length === 2);
             assert(rets[0] === 1);
             assert(rets[1] === 2);
@@ -447,7 +532,7 @@ describe('SyncTasks', function () {
             assert.equal(err, 5);
             assert(canceled);
             assert.equal(cancelContext, 4);
-            return void 0;
+            return -1;
         });
         secPromise.cancel(4);
         return promise.then(function () {

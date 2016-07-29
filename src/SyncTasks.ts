@@ -21,10 +21,14 @@ export const config = {
     // digging through a stack trace.
     catchExceptions: true,
 
-    exceptionHandler: <(ex: Error) => void>null
+    exceptionHandler: <(ex: Error) => void>null,
+    
+    // If an ErrorFunc is not added to the task (then, catch, always) before the task rejects or synchonously
+    // after that, then this function is called with the error. Default throws the error.
+    unhandledErrorHandler: <(err: any) => void>((err: any) => { throw err })
 };
 
-function isThenable(object: any): boolean {
+function isThenable(object: any): object is Thenable<any> {
     return object !== null && object !== void 0 && typeof object.then === 'function';
 }
 
@@ -74,6 +78,8 @@ export interface Thenable<T> {
 }
 
 export interface Promise<T> extends Thenable<T> {
+    catch<U>(errorFunc: ErrorFunc<U>): Promise<U>;
+    
     finally(func: (value: T|any) => void): Promise<T>;
     
     always<U>(func: (value: T|any) => U | Thenable<U>): Promise<U>;
@@ -106,12 +112,20 @@ module Internal {
         private _resolving = false;
 
         private _storedCallbackSets: CallbackSet<T, any>[] = [];
+        
+        // 'Handled' just means there was a callback set added.
+        // Note: If that callback does not handle the error then that callback's task will be 'unhandled' instead of this one.
+        private _errorWillBeHandled = false;
+        
+        private static _rejectedTasks: SyncTask<any>[] = [];
+        private static _enforceErrorHandledTimer: number = null;
 
         private _addCallbackSet<U>(set: CallbackSet<T, U>): Promise<U> {
             const task = new SyncTask<U>();
             task.onCancel(this.cancel.bind(this));
             set.task = task;
             this._storedCallbackSets.push(set);
+            this._errorWillBeHandled = true;
 
             // The _resolve* functions handle callbacks being added while they are running.
             if (!this._resolving) {
@@ -138,6 +152,12 @@ module Internal {
         then<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U> {
             return this._addCallbackSet<U>({
                 successFunc: successFunc,
+                failFunc: errorFunc
+            });
+        }
+        
+        catch<U>(errorFunc: ErrorFunc<U>): Promise<U> {
+            return this._addCallbackSet<U>({
                 failFunc: errorFunc
             });
         }
@@ -187,7 +207,35 @@ module Internal {
 
             this._resolveFailures();
 
+            SyncTask._enforceErrorHandled(this);
+
             return this;
+        }
+        
+        // Make sure any rejected task has its failured handled.
+        private static _enforceErrorHandled(task: SyncTask<any>): void {
+            if (task._errorWillBeHandled) {
+                return;
+            }
+            
+            SyncTask._rejectedTasks.push(task);
+            
+            // Wait for some async time in the future to check these tasks.
+            if (!SyncTask._enforceErrorHandledTimer) {
+                SyncTask._enforceErrorHandledTimer = setTimeout(() => {
+                    SyncTask._enforceErrorHandledTimer = null;
+                    
+                    const rejectedTasks = SyncTask._rejectedTasks;
+                    SyncTask._rejectedTasks = [];
+                    
+                    rejectedTasks.forEach((rejectedTask, i) => {
+                        if (!rejectedTask._errorWillBeHandled) {
+                            // Unhandled!
+                            config.unhandledErrorHandler(rejectedTask._storedErrResolution);
+                        }
+                    });
+                }, 0);
+            }
         }
 
         cancel(context?: any): void {
@@ -284,15 +332,18 @@ module Internal {
     }
 }
 
-export function whenAll(tasks: Promise<any>[]): Promise<any[]> {
-    if (tasks.length === 0) {
+// Resolves once all of the given items resolve (non-thenables are 'resolved').
+// Rejects once any of the given thenables reject.
+// Note: resolves immediately if given no items.
+export function all(items: any[]): Promise<any[]> {
+    if (items.length === 0) {
         return Resolved<any[]>([]);
     }
 
     const outTask = Defer<any[]>();
-    let countRemaining = tasks.length;
+    let countRemaining = items.length;
     let foundError: any = null;
-    const results = Array(tasks.length);
+    const results = Array(items.length);
 
     const checkFinish = () => {
         if (--countRemaining === 0) {
@@ -304,8 +355,9 @@ export function whenAll(tasks: Promise<any>[]): Promise<any[]> {
         }
     };
 
-    tasks.forEach((task, index) => {
-        if (isThenable(task)) {
+    items.forEach((item, index) => {
+        if (isThenable(item)) {
+            const task = <Thenable<any>>item;
             task.then(res => {
                 results[index] = res;
                 checkFinish();
@@ -317,10 +369,42 @@ export function whenAll(tasks: Promise<any>[]): Promise<any[]> {
             });
         } else {
             // Not a task, so resolve directly with the item
-            results[index] = task;
+            results[index] = item;
             checkFinish();
         }
     });
 
+    return outTask.promise();
+}
+
+// Resolves/Rejects once any of the given items resolve or reject (non-thenables are 'resolved').
+// Note: never resolves if given no items.
+export function race(items: any[]): Promise<any> {
+    const outTask = Defer<any>();
+    let hasSettled = false;
+    
+    items.forEach(item => {
+        if (isThenable(item)) {
+            const task = <Thenable<any>>item;
+            task.then(res => {
+                if (!hasSettled) {
+                    hasSettled = true;
+                    outTask.resolve(res);
+                }
+            }, err => {
+                if (!hasSettled) {
+                    hasSettled = true;
+                    outTask.reject(err);
+                }
+            });
+        } else {
+            // Not a task, so resolve directly with the item
+            if (!hasSettled) {
+                hasSettled = true;
+                outTask.resolve(item);
+            }
+        }
+    });
+    
     return outTask.promise();
 }

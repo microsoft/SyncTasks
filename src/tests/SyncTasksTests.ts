@@ -321,13 +321,13 @@ describe('SyncTasks', function () {
         innertask.resolve(1);
     });
 
-    it('whenAll basic success', (done) => {
+    it('"all" basic success', (done) => {
         const task = SyncTasks.Defer<number>();
         const task2 = SyncTasks.Defer<number>();
         const task3 = SyncTasks.Defer<number>();
         const task4 = SyncTasks.Defer<number>();
 
-        SyncTasks.whenAll([task.promise(), task2.promise(), task3.promise(), task4.promise()]).then(rets => {
+        SyncTasks.all([task.promise(), task2.promise(), task3.promise(), task4.promise()]).then(rets => {
             assert.equal(rets.length, 4);
             assert.equal(rets[0], 1);
             assert.equal(rets[1], 2);
@@ -344,11 +344,11 @@ describe('SyncTasks', function () {
         task4.resolve(4);
     });
 
-    it('whenAll basic failure', (done) => {
+    it('"all" basic failure', (done) => {
         const task = SyncTasks.Defer<number>();
         const task2 = SyncTasks.Defer<number>();
 
-        SyncTasks.whenAll([task.promise(), task2.promise()]).then(rets => {
+        SyncTasks.all([task.promise(), task2.promise()]).then(rets => {
             assert(false);
         }, err => {
             done();
@@ -358,8 +358,8 @@ describe('SyncTasks', function () {
         task2.reject(2);
     });
 
-    it('whenAll zero tasks', (done) => {
-        SyncTasks.whenAll([]).then(rets => {
+    it('"all" zero tasks', (done) => {
+        SyncTasks.all([]).then(rets => {
             assert.equal(rets.length, 0);
             done();
         }, err => {
@@ -367,8 +367,8 @@ describe('SyncTasks', function () {
         });
     });
 
-    it('whenAll single null task', (done) => {
-        SyncTasks.whenAll([null]).then(rets => {
+    it('"all" single null task', (done) => {
+        SyncTasks.all([null]).then(rets => {
             assert.equal(rets.length, 1);
             done();
         }, err => {
@@ -376,10 +376,10 @@ describe('SyncTasks', function () {
         });
     });
 
-    it('whenAll tasks and nulls', (done) => {
+    it('"all" tasks and nulls', (done) => {
         const task = SyncTasks.Defer<number>();
 
-        SyncTasks.whenAll([null, task.promise()]).then(rets => {
+        SyncTasks.all([null, task.promise()]).then(rets => {
             assert.equal(rets.length, 2);
             done();
         }, err => {
@@ -387,6 +387,72 @@ describe('SyncTasks', function () {
         });
 
         task.resolve(1);
+    });
+
+    it('"race" basic success', (done) => {
+        const task = SyncTasks.Defer<number>();
+        const task2 = SyncTasks.Defer<number>();
+        const task3 = SyncTasks.Defer<number>();
+        const task4 = SyncTasks.Defer<number>();
+
+        SyncTasks.race([task.promise(), task2.promise(), task3.promise(), task4.promise()]).then(ret => {
+            assert.equal(ret, 1);
+            done();
+        }, err => {
+            assert(false);
+        });
+
+        task.resolve(1);
+        task2.resolve(2);
+        task3.resolve(3);
+        task4.resolve(4);
+    });
+
+    it('"race" basic failure', (done) => {
+        const task = SyncTasks.Defer<number>();
+        const task2 = SyncTasks.Defer<number>();
+
+        SyncTasks.race([task.promise(), task2.promise()]).then(ret => {
+            assert(false);
+        }, err => {
+            assert.equal(err, 1);
+            done();
+        });
+
+        task.reject(1);
+        task2.resolve(2);
+    });
+
+    it('"race" zero tasks', (done) => {
+        SyncTasks.race([]).then(ret => {
+            assert(false);
+        }, err => {
+            assert(false);
+        });
+        
+        setTimeout(() => done(), 20);
+    });
+
+    it('"race" single null task', (done) => {
+        SyncTasks.race([null]).then(ret => {
+            assert.equal(ret, null);
+            done();
+        }, err => {
+            assert(false);
+        });
+    });
+
+    it('"race" tasks and nulls', (done) => {
+        const task = SyncTasks.Defer<number>();
+
+        SyncTasks.race([null, task.promise()]).then(ret => {
+            assert.equal(ret, null);
+            done();
+        }, err => {
+            assert(false);
+        });
+
+        task.resolve(2);
     });
 
     it('Callbacks resolve synchronously', (done) => {
@@ -450,6 +516,18 @@ describe('SyncTasks', function () {
         done();
     });
 
+    it('Failure without error callback will use unhandledErrorHandler', (done) => {
+        const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
+        SyncTasks.config.unhandledErrorHandler = () => {
+            SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
+            done();
+        }
+        
+        SyncTasks.Rejected<number>().then(() => {
+            assert(false);
+        });
+    });
+
     it('Add callback while resolving', (done) => {
         const task = SyncTasks.Defer<number>();
         const promise = task.promise();
@@ -473,7 +551,7 @@ describe('SyncTasks', function () {
 
         task.resolve(1);
 
-        SyncTasks.whenAll([innerTask1.promise(), innerTask2.promise()]).then(rets => {
+        SyncTasks.all([innerTask1.promise(), innerTask2.promise()]).then(rets => {
             assert(rets.length === 2);
             assert(rets[0] === 1);
             assert(rets[1] === 2);
@@ -506,7 +584,7 @@ describe('SyncTasks', function () {
 
         task.reject(1);
 
-        SyncTasks.whenAll([innerTask1.promise(), innerTask2.promise()]).then(rets => {
+        SyncTasks.all([innerTask1.promise(), innerTask2.promise()]).then(rets => {
             assert(rets.length === 2);
             assert(rets[0] === 1);
             assert(rets[1] === 2);
