@@ -260,9 +260,6 @@ var Internal;
     }());
     Internal.SyncTask = SyncTask;
 })(Internal || (Internal = {}));
-// Resolves once all of the given items resolve (non-thenables are 'resolved').
-// Rejects once any of the given thenables reject.
-// Note: resolves immediately if given no items.
 function all(items) {
     if (items.length === 0) {
         return Resolved([]);
@@ -303,8 +300,6 @@ function all(items) {
     return outTask.promise();
 }
 exports.all = all;
-// Resolves/Rejects once any of the given items resolve or reject (non-thenables are 'resolved').
-// Note: never resolves if given no items.
 function race(items) {
     var outTask = Defer();
     var hasSettled = false;
