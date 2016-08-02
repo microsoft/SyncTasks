@@ -428,15 +428,116 @@ describe('SyncTasks', function () {
         assert(rejectedCount === 2);
         done();
     });
-    it('Failure without error callback will use unhandledErrorHandler', function (done) {
+    it('"unhandledErrorHandler": Failure without any callback', function (done) {
+        var unhandledErrorHandlerCalled = false;
         var oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
         SyncTasks.config.unhandledErrorHandler = function () {
+            unhandledErrorHandlerCalled = true;
+        };
+        SyncTasks.Rejected();
+        setTimeout(function () {
             SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
+            assert(unhandledErrorHandlerCalled);
             done();
+        }, 20);
+    });
+    it('"unhandledErrorHandler": Failure with only success callback', function (done) {
+        var unhandledErrorHandlerCalled = false;
+        var oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
+        SyncTasks.config.unhandledErrorHandler = function () {
+            unhandledErrorHandlerCalled = true;
         };
         SyncTasks.Rejected().then(function () {
             assert(false);
         });
+        setTimeout(function () {
+            SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
+            assert(unhandledErrorHandlerCalled);
+            done();
+        }, 20);
+    });
+    it('"unhandledErrorHandler": Failure with success callback with failure callback', function (done) {
+        var catchBlockReached = false;
+        SyncTasks.Rejected().then(function () {
+            assert(false);
+        }).catch(function () {
+            catchBlockReached = true;
+        });
+        setTimeout(function () {
+            assert(catchBlockReached);
+            done();
+        }, 20);
+    });
+    it('"unhandledErrorHandler": Success to inner failure without any callback', function (done) {
+        var unhandledErrorHandlerCalled = false;
+        var oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
+        SyncTasks.config.unhandledErrorHandler = function () {
+            unhandledErrorHandlerCalled = true;
+        };
+        SyncTasks.Resolved().then(function () {
+            return SyncTasks.Rejected();
+        });
+        setTimeout(function () {
+            SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
+            assert(unhandledErrorHandlerCalled);
+            done();
+        }, 20);
+    });
+    it('"unhandledErrorHandler": Failure to inner failure without any callback', function (done) {
+        var unhandledErrorHandlerCalled = 0;
+        var oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
+        SyncTasks.config.unhandledErrorHandler = function (n) {
+            unhandledErrorHandlerCalled = n;
+        };
+        SyncTasks.Rejected(1).catch(function () {
+            return SyncTasks.Rejected(2);
+        });
+        // Note: the outer "catch" has no failure handling so the inner error leaks out.
+        setTimeout(function () {
+            SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
+            assert.equal(unhandledErrorHandlerCalled, 2);
+            done();
+        }, 20);
+    });
+    it('"unhandledErrorHandler": Each chained promise must handle', function (done) {
+        var unhandledErrorHandlerCalled = false;
+        var catchBlockReached = false;
+        var oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
+        SyncTasks.config.unhandledErrorHandler = function () {
+            unhandledErrorHandlerCalled = true;
+        };
+        var task = SyncTasks.Rejected();
+        task.catch(function () {
+            catchBlockReached = true;
+        });
+        // Does not handle failure.
+        task.then(function () {
+            assert(false);
+        });
+        setTimeout(function () {
+            SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
+            assert(unhandledErrorHandlerCalled);
+            assert(catchBlockReached);
+            done();
+        }, 20);
+    });
+    it('"unhandledErrorHandler": "fail" never "handles" the failure', function (done) {
+        var unhandledErrorHandlerCalled = false;
+        var failBlockReached = false;
+        var oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
+        SyncTasks.config.unhandledErrorHandler = function () {
+            unhandledErrorHandlerCalled = true;
+        };
+        SyncTasks.Rejected().fail(function () {
+            failBlockReached = true;
+            // If this was .catch, it would resolve the promise (with undefined) and the failure would be handled.
+        });
+        setTimeout(function () {
+            SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
+            assert(unhandledErrorHandlerCalled);
+            assert(failBlockReached);
+            done();
+        }, 20);
     });
     it('Add callback while resolving', function (done) {
         var task = SyncTasks.Defer();

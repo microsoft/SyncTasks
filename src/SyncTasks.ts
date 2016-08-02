@@ -120,12 +120,12 @@ module Internal {
         private static _rejectedTasks: SyncTask<any>[] = [];
         private static _enforceErrorHandledTimer: number = null;
 
-        private _addCallbackSet<U>(set: CallbackSet<T, U>): Promise<U> {
+        private _addCallbackSet<U>(set: CallbackSet<T, U>, callbackWillChain: boolean): Promise<U> {
             const task = new SyncTask<U>();
             task.onCancel(this.cancel.bind(this));
             set.task = task;
             this._storedCallbackSets.push(set);
-            this._errorWillBeHandled = true;
+            this._errorWillBeHandled = callbackWillChain || this._errorWillBeHandled;
 
             // The _resolve* functions handle callbacks being added while they are running.
             if (!this._resolving) {
@@ -153,36 +153,43 @@ module Internal {
             return this._addCallbackSet<U>({
                 successFunc: successFunc,
                 failFunc: errorFunc
-            });
+            }, true);
         }
         
         catch<U>(errorFunc: ErrorFunc<U>): Promise<U> {
             return this._addCallbackSet<U>({
                 failFunc: errorFunc
-            });
+            }, true);
         }
 
         always<U>(func: (value: T|any) => U | Promise<U>): Promise<U> {
             return this._addCallbackSet<U>({
                 successFunc: func,
                 failFunc: func
-            });
+            }, true);
         }
-
+        
         // Finally should let you inspect the value of the promise as it passes through without affecting the then chaining
         // i.e. a failed promise with a finally after it should then chain to the fail case of the next then
         finally(func: (value: T|any) => void): Promise<T> {
-            this.always(func);
+            this._addCallbackSet<T|any>({
+                successFunc: func,
+                failFunc: func
+            }, false);
             return this;
         }
 
         done(successFunc: (value: T) => void): Promise<T> {
-            this.then(successFunc);
+            this._addCallbackSet<void>({
+                successFunc: successFunc
+            }, false);
             return this;
         }
 
         fail(errorFunc: (error: any) => void): Promise<T> {
-            this.then(null, errorFunc);
+            this._addCallbackSet<void>({
+                failFunc: errorFunc
+            }, false);
             return this;
         }
 

@@ -69,12 +69,12 @@ var Internal;
             // Note: If that callback does not handle the error then that callback's task will be 'unhandled' instead of this one.
             this._errorWillBeHandled = false;
         }
-        SyncTask.prototype._addCallbackSet = function (set) {
+        SyncTask.prototype._addCallbackSet = function (set, callbackWillChain) {
             var task = new SyncTask();
             task.onCancel(this.cancel.bind(this));
             set.task = task;
             this._storedCallbackSets.push(set);
-            this._errorWillBeHandled = true;
+            this._errorWillBeHandled = callbackWillChain || this._errorWillBeHandled;
             // The _resolve* functions handle callbacks being added while they are running.
             if (!this._resolving) {
                 if (this._completedSuccess) {
@@ -99,31 +99,38 @@ var Internal;
             return this._addCallbackSet({
                 successFunc: successFunc,
                 failFunc: errorFunc
-            });
+            }, true);
         };
         SyncTask.prototype.catch = function (errorFunc) {
             return this._addCallbackSet({
                 failFunc: errorFunc
-            });
+            }, true);
         };
         SyncTask.prototype.always = function (func) {
             return this._addCallbackSet({
                 successFunc: func,
                 failFunc: func
-            });
+            }, true);
         };
         // Finally should let you inspect the value of the promise as it passes through without affecting the then chaining
         // i.e. a failed promise with a finally after it should then chain to the fail case of the next then
         SyncTask.prototype.finally = function (func) {
-            this.always(func);
+            this._addCallbackSet({
+                successFunc: func,
+                failFunc: func
+            }, false);
             return this;
         };
         SyncTask.prototype.done = function (successFunc) {
-            this.then(successFunc);
+            this._addCallbackSet({
+                successFunc: successFunc
+            }, false);
             return this;
         };
         SyncTask.prototype.fail = function (errorFunc) {
-            this.then(null, errorFunc);
+            this._addCallbackSet({
+                failFunc: errorFunc
+            }, false);
             return this;
         };
         SyncTask.prototype.resolve = function (obj) {
