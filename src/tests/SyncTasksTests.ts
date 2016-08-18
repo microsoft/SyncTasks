@@ -779,4 +779,48 @@ describe('SyncTasks', function () {
             return SyncTasks.Resolved<number>();
         });
     });
+
+    it('deferCallback', (done) => {
+        let got = false;
+        let got2 = false;
+        SyncTasks.deferCallback(() => {
+            got = true;
+        });
+        setTimeout(() => {
+            assert(got);
+            assert(got2);
+            done();
+        }, 1);
+        SyncTasks.deferCallback(() => {
+            got2 = true;
+        });
+        assert(!got);
+        assert(!got2);
+    });
+
+    it('thenDeferred Simple', (done) => {
+        const task = SyncTasks.Defer<number>();
+
+        let tooEarly = true;
+        task.promise().then(val => {
+            assert.equal(val, 1);
+            return 2;
+        }, err => {
+            assert(false);
+            return null;
+        }).thenDeferred(val => {
+            assert.equal(val, 2);
+            assert(!tooEarly);
+            done();
+        }, err => {
+            assert(false);
+        });
+
+        SyncTasks.deferCallback(() => {
+            tooEarly = false;
+        });
+        task.resolve(1);
+
+        assert(tooEarly);
+    });
 });
