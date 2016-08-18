@@ -1,34 +1,34 @@
 {
-	"name": "synctasks",
-	"version": "0.2.5",
-	"description": "An explicitly non-A+ Promise library that resolves promises synchronously",
-	"author": "David de Regt <David.de.Regt@microsoft.com>",
-	"scripts": {
-		"test": "mocha dist/tests/synctaskstests.js",
-		"webtest": "webpack",
-		"build": "tsc"
-	},
-	"main": "dist/SyncTasks.js",
-	"devDependencies": {
-		"mocha": "^2.3.4",
-		"ts-loader": "^0.8.1",
-		"typescript": "^1.8.9",
-		"webpack": "^1.12.14"
-	},
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/Microsoft/SyncTasks"
-	},
-	"bugs": {
-		"url": "https://github.com/Microsoft/SyncTasks/issues"
-	},
-	"typings": "dist/SyncTasks.d.ts",
-	"typescript": {
-		"definition": "dist/SyncTasks.d.ts"
-	},
-	"keywords": [
-		"promises",
-		"synchronous"
-	],
-	"license": "MIT"
+  "name": "synctasks",
+  "version": "0.2.6",
+  "description": "An explicitly non-A+ Promise library that resolves promises synchronously",
+  "author": "David de Regt <David.de.Regt@microsoft.com>",
+  "scripts": {
+    "test": "mocha dist/tests/synctaskstests.js",
+    "webtest": "webpack",
+    "build": "tsc"
+  },
+  "main": "dist/SyncTasks.js",
+  "devDependencies": {
+    "mocha": "^2.3.4",
+    "ts-loader": "^0.8.1",
+    "typescript": "^1.8.9",
+    "webpack": "^1.12.14"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Microsoft/SyncTasks"
+  },
+  "bugs": {
+    "url": "https://github.com/Microsoft/SyncTasks/issues"
+  },
+  "typings": "dist/SyncTasks.d.ts",
+  "typescript": {
+    "definition": "dist/SyncTasks.d.ts"
+  },
+  "keywords": [
+    "promises",
+    "synchronous"
+  ],
+  "license": "MIT"
 }

@@ -1,15 +1,15 @@
 /**
- * SyncTasks.ts
- * Author: David de Regt
- * Copyright: Microsoft 2015
- *
- * A very simple promise library that resolves all promises synchronously instead of
- * kicking them back to the main ticking thread.  This affirmatively rejects the A+
- * standard for promises, and is used for a combination of performance (wrapping
- * things back to the main thread is really slow) and because indexeddb loses
- * context for its calls if you send them around the event loop and transactions
- * automatically close.
- */
+* SyncTasks.ts
+* Author: David de Regt
+* Copyright: Microsoft 2015
+*
+* A very simple promise library that resolves all promises synchronously instead of
+* kicking them back to the main ticking thread.  This affirmatively rejects the A+
+* standard for promises, and is used for a combination of performance (wrapping
+* things back to the main thread is really slow) and because indexeddb loses
+* context for its calls if you send them around the event loop and transactions
+* automatically close.
+*/
 "use strict";
 exports.config = {
     // If we catch exceptions in success/fail blocks, it silently falls back to the fail case of the outer promise.
@@ -41,6 +41,33 @@ function run(trier, catcher) {
     }
     else {
         return trier();
+    }
+}
+var asyncCallbacks = [];
+// Ideally, we use setImmediate, but that's only supported on some environments.
+// Suggestion: Use the "setimmediate" NPM package to polyfill where it's not available.
+var useSetImmediate = typeof setImmediate !== 'undefined';
+/**
+ * This function will defer callback of the specified callback lambda until the next JS tick, simulating standard A+ promise behavior
+ */
+function asyncCallback(callback) {
+    asyncCallbacks.push(callback);
+    if (asyncCallbacks.length === 1) {
+        // Start a callback for the next tick
+        if (useSetImmediate) {
+            setImmediate(resolveAsyncCallbacks);
+        }
+        else {
+            setTimeout(resolveAsyncCallbacks, 0);
+        }
+    }
+}
+exports.asyncCallback = asyncCallback;
+function resolveAsyncCallbacks() {
+    var savedCallbacks = asyncCallbacks;
+    asyncCallbacks = [];
+    for (var i = 0; i < savedCallbacks.length; i++) {
+        savedCallbacks[i]();
     }
 }
 function Defer() {
@@ -99,6 +126,13 @@ var Internal;
             return this._addCallbackSet({
                 successFunc: successFunc,
                 failFunc: errorFunc
+            }, true);
+        };
+        SyncTask.prototype.thenAsync = function (successFunc, errorFunc) {
+            return this._addCallbackSet({
+                successFunc: successFunc,
+                failFunc: errorFunc,
+                asyncCallback: true
             }, true);
         };
         SyncTask.prototype.catch = function (errorFunc) {
@@ -198,28 +232,37 @@ var Internal;
                 var callbacks = this._storedCallbackSets;
                 this._storedCallbackSets = [];
                 callbacks.forEach(function (callback) {
-                    if (callback.successFunc) {
-                        run(function () {
-                            var ret = callback.successFunc(_this._storedResolution);
-                            if (isThenable(ret)) {
-                                var newTask = ret;
-                                // The success block of a then returned a new promise, so 
-                                newTask.then(function (r) { callback.task.resolve(r); }, function (e) { callback.task.reject(e); });
-                            }
-                            else {
-                                callback.task.resolve(ret);
-                            }
-                        }, function (e) {
-                            _this._handleException(e, 'SyncTask caught exception in success block: ' + e.toString());
-                            callback.task.reject(e);
-                        });
+                    if (callback.asyncCallback) {
+                        asyncCallback(_this._resolveCallback.bind(_this, callback));
                     }
                     else {
-                        callback.task.resolve(_this._storedResolution);
+                        _this._resolveCallback(callback);
                     }
                 });
             }
             this._resolving = false;
+        };
+        SyncTask.prototype._resolveCallback = function (callback) {
+            var _this = this;
+            if (callback.successFunc) {
+                run(function () {
+                    var ret = callback.successFunc(_this._storedResolution);
+                    if (isThenable(ret)) {
+                        var newTask = ret;
+                        // The success block of a then returned a new promise, so 
+                        newTask.then(function (r) { callback.task.resolve(r); }, function (e) { callback.task.reject(e); });
+                    }
+                    else {
+                        callback.task.resolve(ret);
+                    }
+                }, function (e) {
+                    _this._handleException(e, 'SyncTask caught exception in success block: ' + e.toString());
+                    callback.task.reject(e);
+                });
+            }
+            else {
+                callback.task.resolve(this._storedResolution);
+            }
         };
         SyncTask.prototype._resolveFailures = function () {
             var _this = this;

@@ -646,4 +646,43 @@ describe('SyncTasks', function () {
             return SyncTasks.Resolved();
         });
     });
+    it('deferCallback', function (done) {
+        var got = false;
+        var got2 = false;
+        SyncTasks.asyncCallback(function () {
+            got = true;
+        });
+        setTimeout(function () {
+            assert(got);
+            assert(got2);
+            done();
+        }, 1);
+        SyncTasks.asyncCallback(function () {
+            got2 = true;
+        });
+        assert(!got);
+        assert(!got2);
+    });
+    it('thenDeferred Simple', function (done) {
+        var task = SyncTasks.Defer();
+        var tooEarly = true;
+        task.promise().then(function (val) {
+            assert.equal(val, 1);
+            return 2;
+        }, function (err) {
+            assert(false);
+            return null;
+        }).thenAsync(function (val) {
+            assert.equal(val, 2);
+            assert(!tooEarly);
+            done();
+        }, function (err) {
+            assert(false);
+        });
+        SyncTasks.asyncCallback(function () {
+            tooEarly = false;
+        });
+        task.resolve(1);
+        assert(tooEarly);
+    });
 });

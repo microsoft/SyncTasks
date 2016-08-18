@@ -1,21 +1,25 @@
 /**
- * SyncTasks.ts
- * Author: David de Regt
- * Copyright: Microsoft 2015
- *
- * A very simple promise library that resolves all promises synchronously instead of
- * kicking them back to the main ticking thread.  This affirmatively rejects the A+
- * standard for promises, and is used for a combination of performance (wrapping
- * things back to the main thread is really slow) and because indexeddb loses
- * context for its calls if you send them around the event loop and transactions
- * automatically close.
- */
+* SyncTasks.ts
+* Author: David de Regt
+* Copyright: Microsoft 2015
+*
+* A very simple promise library that resolves all promises synchronously instead of
+* kicking them back to the main ticking thread.  This affirmatively rejects the A+
+* standard for promises, and is used for a combination of performance (wrapping
+* things back to the main thread is really slow) and because indexeddb loses
+* context for its calls if you send them around the event loop and transactions
+* automatically close.
+*/
 export declare const config: {
     exceptionsToConsole: boolean;
     catchExceptions: boolean;
     exceptionHandler: (ex: Error) => void;
     unhandledErrorHandler: (err: any) => void;
 };
+/**
+ * This function will defer callback of the specified callback lambda until the next JS tick, simulating standard A+ promise behavior
+ */
+export declare function asyncCallback(callback: () => void): void;
 export declare type SuccessFunc<T, U> = (value: T) => U | Thenable<U>;
 export declare type ErrorFunc<U> = (error: any) => U | Thenable<U>;
 export declare type CancelFunc = (context: any) => void;
@@ -38,6 +42,7 @@ export interface Promise<T> extends Thenable<T> {
     done(successFunc: (value: T) => void): Promise<T>;
     fail(errorFunc: (error: any) => void): Promise<T>;
     cancel(context?: any): void;
+    thenAsync<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
 }
 export declare function all<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(values: [T1 | Thenable<T1>, T2 | Thenable<T2>, T3 | Thenable<T3>, T4 | Thenable<T4>, T5 | Thenable<T5>, T6 | Thenable<T6>, T7 | Thenable<T7>, T8 | Thenable<T8>, T9 | Thenable<T9>, T10 | Thenable<T10>]): Promise<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10]>;
 export declare function all<T1, T2, T3, T4, T5, T6, T7, T8, T9>(values: [T1 | Thenable<T1>, T2 | Thenable<T2>, T3 | Thenable<T3>, T4 | Thenable<T4>, T5 | Thenable<T5>, T6 | Thenable<T6>, T7 | Thenable<T7>, T8 | Thenable<T8>, T9 | Thenable<T9>]): Promise<[T1, T2, T3, T4, T5, T6, T7, T8, T9]>;

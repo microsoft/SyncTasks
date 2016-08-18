@@ -47,6 +47,36 @@ function run<T, C extends any>(trier: () => T, catcher?: (e: Error) => C): T | C
     }
 }
 
+let asyncCallbacks: (() => void)[] = [];
+
+// Ideally, we use setImmediate, but that's only supported on some environments.
+// Suggestion: Use the "setimmediate" NPM package to polyfill where it's not available.
+const useSetImmediate = typeof setImmediate !== 'undefined';
+
+/**
+ * This function will defer callback of the specified callback lambda until the next JS tick, simulating standard A+ promise behavior
+ */
+export function asyncCallback(callback: () => void) {
+    asyncCallbacks.push(callback);
+
+    if (asyncCallbacks.length === 1) {
+        // Start a callback for the next tick
+        if (useSetImmediate) {
+            setImmediate(resolveAsyncCallbacks);
+        } else {
+            setTimeout(resolveAsyncCallbacks, 0);
+        }
+    }    
+}
+
+function resolveAsyncCallbacks() {
+    const savedCallbacks = asyncCallbacks;
+    asyncCallbacks = [];
+    for (let i = 0; i < savedCallbacks.length; i++) {
+        savedCallbacks[i]();
+    }
+}
+
 export type SuccessFunc<T, U> = (value: T) => U | Thenable<U>;
 export type ErrorFunc<U> = (error: any) => U | Thenable<U>;
 export type CancelFunc = (context: any) => void;
@@ -90,6 +120,9 @@ export interface Promise<T> extends Thenable<T> {
     
     // Will call any cancellation lambdas up the call chain, and reject a chain up the fail blocks
     cancel(context?: any): void;
+
+    // Defer the resolution of the then until the next event loop, simulating standard A+ promise behavior
+    thenAsync<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
 }
 
 module Internal {
@@ -97,6 +130,7 @@ module Internal {
         successFunc?: SuccessFunc<T, U>;
         failFunc?: ErrorFunc<U>;
         task?: Deferred<any>;
+        asyncCallback?: boolean;
     }
 
     export class SyncTask<T> implements Deferred<T>, Promise<T> {
@@ -153,6 +187,14 @@ module Internal {
             return this._addCallbackSet<U>({
                 successFunc: successFunc,
                 failFunc: errorFunc
+            }, true);
+        }
+
+        thenAsync<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U> {
+            return this._addCallbackSet<U>({
+                successFunc: successFunc,
+                failFunc: errorFunc,
+                asyncCallback: true
             }, true);
         }
         
@@ -274,26 +316,34 @@ module Internal {
                 this._storedCallbackSets = [];
 
                 callbacks.forEach(callback => {
-                    if (callback.successFunc) {
-                        run(() => {
-                            const ret = callback.successFunc(this._storedResolution);
-                            if (isThenable(ret)) {
-                                const newTask = <Thenable<any>>ret;
-                                // The success block of a then returned a new promise, so 
-                                newTask.then(r => { callback.task.resolve(r); }, e => { callback.task.reject(e); });
-                            } else {
-                                callback.task.resolve(ret);
-                            }
-                        }, e => {
-                            this._handleException(e, 'SyncTask caught exception in success block: ' + e.toString());
-                            callback.task.reject(e);
-                        });
+                    if (callback.asyncCallback) {
+                        asyncCallback(this._resolveCallback.bind(this, callback));
                     } else {
-                        callback.task.resolve(this._storedResolution);
+                        this._resolveCallback(callback);
                     }
                 });
             }
             this._resolving = false;
+        }
+
+        private _resolveCallback(callback: CallbackSet<T, any>) {
+            if (callback.successFunc) {
+                run(() => {
+                    const ret = callback.successFunc(this._storedResolution);
+                    if (isThenable(ret)) {
+                        const newTask = <Thenable<any>>ret;
+                        // The success block of a then returned a new promise, so 
+                        newTask.then(r => { callback.task.resolve(r); }, e => { callback.task.reject(e); });
+                    } else {
+                        callback.task.resolve(ret);
+                    }
+                }, e => {
+                    this._handleException(e, 'SyncTask caught exception in success block: ' + e.toString());
+                    callback.task.reject(e);
+                });
+            } else {
+                callback.task.resolve(this._storedResolution);
+            }
         }
 
         private _resolveFailures() {
