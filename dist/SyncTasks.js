@@ -43,29 +43,29 @@ function run(trier, catcher) {
         return trier();
     }
 }
-var deferredCallbacks = [];
+var asyncCallbacks = [];
 // Ideally, we use setImmediate, but that's only supported on some environments.
 // Suggestion: Use the "setimmediate" NPM package to polyfill where it's not available.
 var useSetImmediate = typeof setImmediate !== 'undefined';
 /**
- * This function will defer callback of the specified callback lambda until the next JS tick.
+ * This function will defer callback of the specified callback lambda until the next JS tick, simulating standard A+ promise behavior
  */
-function deferCallback(callback) {
-    deferredCallbacks.push(callback);
-    if (deferredCallbacks.length === 1) {
+function asyncCallback(callback) {
+    asyncCallbacks.push(callback);
+    if (asyncCallbacks.length === 1) {
         // Start a callback for the next tick
         if (useSetImmediate) {
-            setImmediate(resolveDeferredCallbacks);
+            setImmediate(resolveAsyncCallbacks);
         }
         else {
-            setTimeout(resolveDeferredCallbacks, 0);
+            setTimeout(resolveAsyncCallbacks, 0);
         }
     }
 }
-exports.deferCallback = deferCallback;
-function resolveDeferredCallbacks() {
-    var savedCallbacks = deferredCallbacks;
-    deferredCallbacks = [];
+exports.asyncCallback = asyncCallback;
+function resolveAsyncCallbacks() {
+    var savedCallbacks = asyncCallbacks;
+    asyncCallbacks = [];
     for (var i = 0; i < savedCallbacks.length; i++) {
         savedCallbacks[i]();
     }
@@ -128,11 +128,11 @@ var Internal;
                 failFunc: errorFunc
             }, true);
         };
-        SyncTask.prototype.thenDeferred = function (successFunc, errorFunc) {
+        SyncTask.prototype.thenAsync = function (successFunc, errorFunc) {
             return this._addCallbackSet({
                 successFunc: successFunc,
                 failFunc: errorFunc,
-                deferCallback: true
+                asyncCallback: true
             }, true);
         };
         SyncTask.prototype.catch = function (errorFunc) {
@@ -232,8 +232,8 @@ var Internal;
                 var callbacks = this._storedCallbackSets;
                 this._storedCallbackSets = [];
                 callbacks.forEach(function (callback) {
-                    if (callback.deferCallback) {
-                        deferCallback(_this._resolveCallback.bind(_this, callback));
+                    if (callback.asyncCallback) {
+                        asyncCallback(_this._resolveCallback.bind(_this, callback));
                     }
                     else {
                         _this._resolveCallback(callback);

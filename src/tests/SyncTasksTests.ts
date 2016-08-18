@@ -783,7 +783,7 @@ describe('SyncTasks', function () {
     it('deferCallback', (done) => {
         let got = false;
         let got2 = false;
-        SyncTasks.deferCallback(() => {
+        SyncTasks.asyncCallback(() => {
             got = true;
         });
         setTimeout(() => {
@@ -791,7 +791,7 @@ describe('SyncTasks', function () {
             assert(got2);
             done();
         }, 1);
-        SyncTasks.deferCallback(() => {
+        SyncTasks.asyncCallback(() => {
             got2 = true;
         });
         assert(!got);
@@ -808,7 +808,7 @@ describe('SyncTasks', function () {
         }, err => {
             assert(false);
             return null;
-        }).thenDeferred(val => {
+        }).thenAsync(val => {
             assert.equal(val, 2);
             assert(!tooEarly);
             done();
@@ -816,7 +816,7 @@ describe('SyncTasks', function () {
             assert(false);
         });
 
-        SyncTasks.deferCallback(() => {
+        SyncTasks.asyncCallback(() => {
             tooEarly = false;
         });
         task.resolve(1);

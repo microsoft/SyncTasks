@@ -47,31 +47,31 @@ function run<T, C extends any>(trier: () => T, catcher?: (e: Error) => C): T | C
     }
 }
 
-let deferredCallbacks: (() => void)[] = [];
+let asyncCallbacks: (() => void)[] = [];
 
 // Ideally, we use setImmediate, but that's only supported on some environments.
 // Suggestion: Use the "setimmediate" NPM package to polyfill where it's not available.
 const useSetImmediate = typeof setImmediate !== 'undefined';
 
 /**
- * This function will defer callback of the specified callback lambda until the next JS tick.
+ * This function will defer callback of the specified callback lambda until the next JS tick, simulating standard A+ promise behavior
  */
-export function deferCallback(callback: () => void) {
-    deferredCallbacks.push(callback);
+export function asyncCallback(callback: () => void) {
+    asyncCallbacks.push(callback);
 
-    if (deferredCallbacks.length === 1) {
+    if (asyncCallbacks.length === 1) {
         // Start a callback for the next tick
         if (useSetImmediate) {
-            setImmediate(resolveDeferredCallbacks);
+            setImmediate(resolveAsyncCallbacks);
         } else {
-            setTimeout(resolveDeferredCallbacks, 0);
+            setTimeout(resolveAsyncCallbacks, 0);
         }
     }    
 }
 
-function resolveDeferredCallbacks() {
-    const savedCallbacks = deferredCallbacks;
-    deferredCallbacks = [];
+function resolveAsyncCallbacks() {
+    const savedCallbacks = asyncCallbacks;
+    asyncCallbacks = [];
     for (let i = 0; i < savedCallbacks.length; i++) {
         savedCallbacks[i]();
     }
@@ -121,8 +121,8 @@ export interface Promise<T> extends Thenable<T> {
     // Will call any cancellation lambdas up the call chain, and reject a chain up the fail blocks
     cancel(context?: any): void;
 
-    // Defer the resolution of the then until the next event loop
-    thenDeferred<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
+    // Defer the resolution of the then until the next event loop, simulating standard A+ promise behavior
+    thenAsync<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
 }
 
 module Internal {
@@ -130,7 +130,7 @@ module Internal {
         successFunc?: SuccessFunc<T, U>;
         failFunc?: ErrorFunc<U>;
         task?: Deferred<any>;
-        deferCallback?: boolean;
+        asyncCallback?: boolean;
     }
 
     export class SyncTask<T> implements Deferred<T>, Promise<T> {
@@ -190,11 +190,11 @@ module Internal {
             }, true);
         }
 
-        thenDeferred<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U> {
+        thenAsync<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U> {
             return this._addCallbackSet<U>({
                 successFunc: successFunc,
                 failFunc: errorFunc,
-                deferCallback: true
+                asyncCallback: true
             }, true);
         }
         
@@ -316,8 +316,8 @@ module Internal {
                 this._storedCallbackSets = [];
 
                 callbacks.forEach(callback => {
-                    if (callback.deferCallback) {
-                        deferCallback(this._resolveCallback.bind(this, callback));
+                    if (callback.asyncCallback) {
+                        asyncCallback(this._resolveCallback.bind(this, callback));
                     } else {
                         this._resolveCallback(callback);
                     }

@@ -17,9 +17,9 @@ export declare const config: {
     unhandledErrorHandler: (err: any) => void;
 };
 /**
- * This function will defer callback of the specified callback lambda until the next JS tick.
+ * This function will defer callback of the specified callback lambda until the next JS tick, simulating standard A+ promise behavior
  */
-export declare function deferCallback(callback: () => void): void;
+export declare function asyncCallback(callback: () => void): void;
 export declare type SuccessFunc<T, U> = (value: T) => U | Thenable<U>;
 export declare type ErrorFunc<U> = (error: any) => U | Thenable<U>;
 export declare type CancelFunc = (context: any) => void;
@@ -42,7 +42,7 @@ export interface Promise<T> extends Thenable<T> {
     done(successFunc: (value: T) => void): Promise<T>;
     fail(errorFunc: (error: any) => void): Promise<T>;
     cancel(context?: any): void;
-    thenDeferred<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
+    thenAsync<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
 }
 export declare function all<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(values: [T1 | Thenable<T1>, T2 | Thenable<T2>, T3 | Thenable<T3>, T4 | Thenable<T4>, T5 | Thenable<T5>, T6 | Thenable<T6>, T7 | Thenable<T7>, T8 | Thenable<T8>, T9 | Thenable<T9>, T10 | Thenable<T10>]): Promise<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10]>;
 export declare function all<T1, T2, T3, T4, T5, T6, T7, T8, T9>(values: [T1 | Thenable<T1>, T2 | Thenable<T2>, T3 | Thenable<T3>, T4 | Thenable<T4>, T5 | Thenable<T5>, T6 | Thenable<T6>, T7 | Thenable<T7>, T8 | Thenable<T8>, T9 | Thenable<T9>]): Promise<[T1, T2, T3, T4, T5, T6, T7, T8, T9]>;
