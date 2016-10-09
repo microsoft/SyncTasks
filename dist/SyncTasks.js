@@ -1,15 +1,15 @@
 /**
-* SyncTasks.ts
-* Author: David de Regt
-* Copyright: Microsoft 2015
-*
-* A very simple promise library that resolves all promises synchronously instead of
-* kicking them back to the main ticking thread.  This affirmatively rejects the A+
-* standard for promises, and is used for a combination of performance (wrapping
-* things back to the main thread is really slow) and because indexeddb loses
-* context for its calls if you send them around the event loop and transactions
-* automatically close.
-*/
+ * SyncTasks.ts
+ * Author: David de Regt
+ * Copyright: Microsoft 2015
+ *
+ * A very simple promise library that resolves all promises synchronously instead of
+ * kicking them back to the main ticking thread.  This affirmatively rejects the A+
+ * standard for promises, and is used for a combination of performance (wrapping
+ * things back to the main thread is really slow) and because indexeddb loses
+ * context for its calls if you send them around the event loop and transactions
+ * automatically close.
+ */
 "use strict";
 exports.config = {
     // If we catch exceptions in success/fail blocks, it silently falls back to the fail case of the outer promise.
@@ -24,6 +24,17 @@ exports.config = {
     // after that, then this function is called with the error. Default throws the error.
     unhandledErrorHandler: (function (err) { throw err; })
 };
+function fromThenable(thenable) {
+    var deferred = Defer();
+    // NOTE: The {} around the error handling is critical to ensure that
+    // we do not trigger "Possible unhandled rejection" warnings. By adding
+    // the braces, the error handler rejects the outer promise, but returns
+    // void. If we remove the braces, it would *also* return something which
+    // would be unhandled
+    thenable.then(function (value) { deferred.resolve(value); }, function (err) { deferred.reject(err); });
+    return deferred.promise();
+}
+exports.fromThenable = fromThenable;
 function isThenable(object) {
     return object !== null && object !== void 0 && typeof object.then === 'function';
 }

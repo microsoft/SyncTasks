@@ -28,6 +28,19 @@ export const config = {
     unhandledErrorHandler: <(err: any) => void>((err: any) => { throw err })
 };
 
+export function fromThenable<T>(thenable: Thenable<T>): Promise<T> {
+    const deferred = Defer<T>();
+    // NOTE: The {} around the error handling is critical to ensure that
+    // we do not trigger "Possible unhandled rejection" warnings. By adding
+    // the braces, the error handler rejects the outer promise, but returns
+    // void. If we remove the braces, it would *also* return something which
+    // would be unhandled
+    thenable.then<T>(
+        value => { deferred.resolve(value); },
+        (err: any) => { deferred.reject(err); });
+    return deferred.promise();
+}
+
 function isThenable(object: any): object is Thenable<any> {
     return object !== null && object !== void 0 && typeof object.then === 'function';
 }
@@ -77,8 +90,8 @@ function resolveAsyncCallbacks() {
     }
 }
 
-export type SuccessFunc<T, U> = (value: T) => U | Thenable<U>;
-export type ErrorFunc<U> = (error: any) => U | Thenable<U>;
+export type SuccessFunc<T, U> = (value: T) => U | Thenable<U> | void;
+export type ErrorFunc<U> = (error: any) => U | Thenable<U> | void;
 export type CancelFunc = (context: any) => void;
 
 export function Defer<T>(): Deferred<T> {

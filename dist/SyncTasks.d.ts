@@ -1,27 +1,28 @@
 /**
-* SyncTasks.ts
-* Author: David de Regt
-* Copyright: Microsoft 2015
-*
-* A very simple promise library that resolves all promises synchronously instead of
-* kicking them back to the main ticking thread.  This affirmatively rejects the A+
-* standard for promises, and is used for a combination of performance (wrapping
-* things back to the main thread is really slow) and because indexeddb loses
-* context for its calls if you send them around the event loop and transactions
-* automatically close.
-*/
+ * SyncTasks.ts
+ * Author: David de Regt
+ * Copyright: Microsoft 2015
+ *
+ * A very simple promise library that resolves all promises synchronously instead of
+ * kicking them back to the main ticking thread.  This affirmatively rejects the A+
+ * standard for promises, and is used for a combination of performance (wrapping
+ * things back to the main thread is really slow) and because indexeddb loses
+ * context for its calls if you send them around the event loop and transactions
+ * automatically close.
+ */
 export declare const config: {
     exceptionsToConsole: boolean;
     catchExceptions: boolean;
     exceptionHandler: (ex: Error) => void;
     unhandledErrorHandler: (err: any) => void;
 };
+export declare function fromThenable<T>(thenable: Thenable<T>): Promise<T>;
 /**
  * This function will defer callback of the specified callback lambda until the next JS tick, simulating standard A+ promise behavior
  */
 export declare function asyncCallback(callback: () => void): void;
-export declare type SuccessFunc<T, U> = (value: T) => U | Thenable<U>;
-export declare type ErrorFunc<U> = (error: any) => U | Thenable<U>;
+export declare type SuccessFunc<T, U> = (value: T) => U | Thenable<U> | void;
+export declare type ErrorFunc<U> = (error: any) => U | Thenable<U> | void;
 export declare type CancelFunc = (context: any) => void;
 export declare function Defer<T>(): Deferred<T>;
 export declare function Resolved<T>(val?: T): Promise<T>;
