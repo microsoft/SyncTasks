@@ -28,7 +28,12 @@ export const config = {
     unhandledErrorHandler: <(err: any) => void>((err: any) => { throw err })
 };
 
-export function fromThenable<T>(thenable: Thenable<T>): Promise<T> {
+export interface Es6Thenable<R> {
+    then<U>(onFulfilled?: (value: R) => U | Es6Thenable<U>, onRejected?: (error: any) => U | Es6Thenable<U>): Es6Thenable<U>;
+    then<U>(onFulfilled?: (value: R) => U | Es6Thenable<U>, onRejected?: (error: any) => void): Es6Thenable<U>;
+}
+
+export function fromThenable<T>(thenable: Es6Thenable<T>): Promise<T> {
     const deferred = Defer<T>();
     // NOTE: The {} around the error handling is critical to ensure that
     // we do not trigger "Possible unhandled rejection" warnings. By adding
@@ -36,7 +41,7 @@ export function fromThenable<T>(thenable: Thenable<T>): Promise<T> {
     // void. If we remove the braces, it would *also* return something which
     // would be unhandled
     thenable.then<T>(
-        value => { deferred.resolve(value); },
+        value => { deferred.resolve(value); return undefined; },
         (err: any) => { deferred.reject(err); });
     return deferred.promise();
 }

@@ -31,7 +31,7 @@ function fromThenable(thenable) {
     // the braces, the error handler rejects the outer promise, but returns
     // void. If we remove the braces, it would *also* return something which
     // would be unhandled
-    thenable.then(function (value) { deferred.resolve(value); }, function (err) { deferred.reject(err); });
+    thenable.then(function (value) { deferred.resolve(value); return undefined; }, function (err) { deferred.reject(err); });
     return deferred.promise();
 }
 exports.fromThenable = fromThenable;

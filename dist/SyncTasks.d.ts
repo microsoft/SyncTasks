@@ -16,7 +16,11 @@ export declare const config: {
     exceptionHandler: (ex: Error) => void;
     unhandledErrorHandler: (err: any) => void;
 };
-export declare function fromThenable<T>(thenable: Thenable<T>): Promise<T>;
+export interface Es6Thenable<R> {
+    then<U>(onFulfilled?: (value: R) => U | Es6Thenable<U>, onRejected?: (error: any) => U | Es6Thenable<U>): Es6Thenable<U>;
+    then<U>(onFulfilled?: (value: R) => U | Es6Thenable<U>, onRejected?: (error: any) => void): Es6Thenable<U>;
+}
+export declare function fromThenable<T>(thenable: Es6Thenable<T>): Promise<T>;
 /**
  * This function will defer callback of the specified callback lambda until the next JS tick, simulating standard A+ promise behavior
  */
