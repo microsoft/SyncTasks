@@ -50,6 +50,10 @@ function isThenable(object: any): object is Thenable<any> {
     return object !== null && object !== void 0 && typeof object.then === 'function';
 }
 
+function isCancelable(object: any): object is Cancelable {
+    return object !== null && object !== void 0 && typeof object.cancel === 'function';
+}
+
 // Runs trier(). If config.catchExceptions is set then any exception is caught and handed to catcher.
 function run<T, C extends any>(trier: () => T, catcher?: (e: Error) => C): T | C {
     if (config.catchExceptions) {
@@ -125,7 +129,12 @@ export interface Thenable<T> {
     then<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
 }
 
-export interface Promise<T> extends Thenable<T> {
+export interface Cancelable {
+    // Will call any cancellation lambdas up the call chain, and reject a chain up the fail blocks
+    cancel(context?: any): void;
+}
+
+export interface Promise<T> extends Thenable<T>, Cancelable {
     catch<U>(errorFunc: ErrorFunc<U>): Promise<U>;
     
     finally(func: (value: T|any) => void): Promise<T>;
@@ -136,9 +145,6 @@ export interface Promise<T> extends Thenable<T> {
 
     fail(errorFunc: (error: any) => void): Promise<T>;
     
-    // Will call any cancellation lambdas up the call chain, and reject a chain up the fail blocks
-    cancel(context?: any): void;
-
     // Defer the resolution of the then until the next event loop, simulating standard A+ promise behavior
     thenAsync<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
 }
@@ -348,10 +354,15 @@ module Internal {
             if (callback.successFunc) {
                 run(() => {
                     const ret = callback.successFunc(this._storedResolution);
+                    if (isCancelable(ret)) {
+                        this._cancelCallbacks.push(ret.cancel.bind(ret));
+                        if (this._wasCanceled) {
+                            ret.cancel(this._cancelContext);
+                        }
+                    }
                     if (isThenable(ret)) {
-                        const newTask = <Thenable<any>>ret;
                         // The success block of a then returned a new promise, so 
-                        newTask.then(r => { callback.task.resolve(r); }, e => { callback.task.reject(e); });
+                        ret.then(r => { callback.task.resolve(r); }, e => { callback.task.reject(e); });
                     } else {
                         callback.task.resolve(ret);
                     }
@@ -377,9 +388,14 @@ module Internal {
                     if (callback.failFunc) {
                         run(() => {
                             const ret = callback.failFunc(this._storedErrResolution);
+                            if (isCancelable(ret)) {
+                                this._cancelCallbacks.push(ret.cancel.bind(ret));
+                                if (this._wasCanceled) {
+                                    ret.cancel(this._cancelContext);
+                                }
+                            }
                             if (isThenable(ret)) {
-                                const newTask = <Thenable<any>>ret;
-                                newTask.then(r => { callback.task.resolve(r); }, e => { callback.task.reject(e); });
+                                ret.then(r => { callback.task.resolve(r); }, e => { callback.task.reject(e); });
                             } else {
                                 // The failure has been handled: ret is the resolved value.
                                 callback.task.resolve(ret);
@@ -430,6 +446,14 @@ export function all(items: any[]): Promise<any[]> {
     let foundError: any = null;
     const results = Array(items.length);
 
+    outTask.onCancel((val) => {
+        items.forEach(item => {
+            if (isCancelable(item)) {
+                item.cancel(val);
+            }
+        });
+    });
+
     const checkFinish = () => {
         if (--countRemaining === 0) {
             if (foundError !== null) {
@@ -478,6 +502,14 @@ export function race(items: any[]): Promise<any> {
     const outTask = Defer<any>();
     let hasSettled = false;
     
+    outTask.onCancel((val) => {
+        items.forEach(item => {
+            if (isCancelable(item)) {
+                item.cancel(val);
+            }
+        });
+    });
+
     items.forEach(item => {
         if (isThenable(item)) {
             const task = <Thenable<any>>item;

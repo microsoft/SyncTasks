@@ -646,6 +646,180 @@ describe('SyncTasks', function () {
             return SyncTasks.Resolved();
         });
     });
+    it('Cancel task late chained early cancel', function () {
+        var canceled = false;
+        var cancelContext;
+        var task = SyncTasks.Defer();
+        var promise = task.promise();
+        promise.cancel(4);
+        var ret = promise.then(function () {
+            var newTask = SyncTasks.Defer();
+            newTask.onCancel(function (context) {
+                canceled = true;
+                cancelContext = context;
+                newTask.reject(5);
+            });
+            return newTask.promise();
+        }, function (err) {
+            assert(false);
+            return SyncTasks.Rejected();
+        }).catch(function (err) {
+            assert.equal(err, 5);
+            assert(canceled);
+            assert.equal(cancelContext, 4);
+            return SyncTasks.Resolved();
+        });
+        task.resolve();
+        return ret;
+    });
+    it('Cancel task late chained late cancel', function () {
+        var canceled = false;
+        var cancelContext;
+        var task = SyncTasks.Defer();
+        var promise = task.promise();
+        var ret = promise.then(function () {
+            var newTask = SyncTasks.Defer();
+            newTask.onCancel(function (context) {
+                canceled = true;
+                cancelContext = context;
+                newTask.reject(5);
+            });
+            setTimeout(function () {
+                promise.cancel(4);
+            }, 100);
+            return newTask.promise();
+        }, function (err) {
+            assert(false);
+            return SyncTasks.Rejected();
+        }).catch(function (err) {
+            assert.equal(err, 5);
+            assert(canceled);
+            assert.equal(cancelContext, 4);
+            return SyncTasks.Resolved();
+        });
+        task.resolve();
+        return ret;
+    });
+    it('Cancel task late double-chained inner early cancel', function () {
+        var canceled = false;
+        var cancelContext;
+        var task = SyncTasks.Defer();
+        var promise = task.promise();
+        promise.cancel(4);
+        var ret = promise.then(function () {
+            var newTask = SyncTasks.Defer();
+            newTask.onCancel(function (context) {
+                canceled = true;
+                cancelContext = context;
+                newTask.reject(5);
+            });
+            return newTask.promise().then(function () {
+                // Chain another promise in place to make sure it works its way up to the newTask at some point.
+                return 6;
+            });
+        }, function (err) {
+            assert(false);
+            return SyncTasks.Rejected();
+        }).catch(function (err) {
+            assert.equal(err, 5);
+            assert(canceled);
+            assert.equal(cancelContext, 4);
+            return SyncTasks.Resolved();
+        });
+        task.resolve();
+        return ret;
+    });
+    it('Cancel task late double-chained inner late cancel', function () {
+        var canceled = false;
+        var cancelContext;
+        var task = SyncTasks.Defer();
+        var promise = task.promise();
+        var ret = promise.then(function () {
+            var newTask = SyncTasks.Defer();
+            newTask.onCancel(function (context) {
+                canceled = true;
+                cancelContext = context;
+                newTask.reject(5);
+            });
+            setTimeout(function () {
+                promise.cancel(4);
+            }, 100);
+            return newTask.promise().then(function () {
+                // Chain another promise in place to make sure it works its way up to the newTask at some point.
+                return 6;
+            });
+        }, function (err) {
+            assert(false);
+            return SyncTasks.Rejected();
+        }).catch(function (err) {
+            assert.equal(err, 5);
+            assert(canceled);
+            assert.equal(cancelContext, 4);
+            return SyncTasks.Resolved();
+        });
+        task.resolve();
+        return ret;
+    });
+    it('Cancel task late double-chained inner with .all and early cancel', function () {
+        var canceled = false;
+        var cancelContext;
+        var task = SyncTasks.Defer();
+        var promise = task.promise();
+        promise.cancel(4);
+        var ret = promise.then(function () {
+            var newTask = SyncTasks.Defer();
+            newTask.onCancel(function (context) {
+                canceled = true;
+                cancelContext = context;
+                newTask.reject(5);
+            });
+            return SyncTasks.all([newTask.promise()]).then(function () {
+                // Chain another promise in place to make sure it works its way up to the newTask at some point.
+                return 6;
+            });
+        }, function (err) {
+            assert(false);
+            return SyncTasks.Rejected();
+        }).catch(function (err) {
+            assert.equal(err, 5);
+            assert(canceled);
+            assert.equal(cancelContext, 4);
+            return SyncTasks.Resolved();
+        });
+        task.resolve();
+        return ret;
+    });
+    it('Cancel task late double-chained inner with .all and late cancel', function () {
+        var canceled = false;
+        var cancelContext;
+        var task = SyncTasks.Defer();
+        var promise = task.promise();
+        var ret = promise.then(function () {
+            var newTask = SyncTasks.Defer();
+            newTask.onCancel(function (context) {
+                canceled = true;
+                cancelContext = context;
+                newTask.reject(5);
+            });
+            setTimeout(function () {
+                promise.cancel(4);
+            }, 100);
+            return SyncTasks.all([newTask.promise()]).then(function () {
+                // Chain another promise in place to make sure it works its way up to the newTask at some point.
+                return 6;
+            });
+        }, function (err) {
+            assert(false);
+            return SyncTasks.Rejected();
+        }).catch(function (err) {
+            assert.equal(err, 5);
+            assert(canceled);
+            assert.equal(cancelContext, 4);
+            return SyncTasks.Resolved();
+        });
+        task.resolve();
+        return ret;
+    });
     it('deferCallback', function (done) {
         var got = false;
         var got2 = false;

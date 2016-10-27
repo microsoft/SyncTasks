@@ -38,6 +38,9 @@ exports.fromThenable = fromThenable;
 function isThenable(object) {
     return object !== null && object !== void 0 && typeof object.then === 'function';
 }
+function isCancelable(object) {
+    return object !== null && object !== void 0 && typeof object.cancel === 'function';
+}
 // Runs trier(). If config.catchExceptions is set then any exception is caught and handed to catcher.
 function run(trier, catcher) {
     if (exports.config.catchExceptions) {
@@ -258,10 +261,15 @@ var Internal;
             if (callback.successFunc) {
                 run(function () {
                     var ret = callback.successFunc(_this._storedResolution);
+                    if (isCancelable(ret)) {
+                        _this._cancelCallbacks.push(ret.cancel.bind(ret));
+                        if (_this._wasCanceled) {
+                            ret.cancel(_this._cancelContext);
+                        }
+                    }
                     if (isThenable(ret)) {
-                        var newTask = ret;
                         // The success block of a then returned a new promise, so 
-                        newTask.then(function (r) { callback.task.resolve(r); }, function (e) { callback.task.reject(e); });
+                        ret.then(function (r) { callback.task.resolve(r); }, function (e) { callback.task.reject(e); });
                     }
                     else {
                         callback.task.resolve(ret);
@@ -287,9 +295,14 @@ var Internal;
                     if (callback.failFunc) {
                         run(function () {
                             var ret = callback.failFunc(_this._storedErrResolution);
+                            if (isCancelable(ret)) {
+                                _this._cancelCallbacks.push(ret.cancel.bind(ret));
+                                if (_this._wasCanceled) {
+                                    ret.cancel(_this._cancelContext);
+                                }
+                            }
                             if (isThenable(ret)) {
-                                var newTask = ret;
-                                newTask.then(function (r) { callback.task.resolve(r); }, function (e) { callback.task.reject(e); });
+                                ret.then(function (r) { callback.task.resolve(r); }, function (e) { callback.task.reject(e); });
                             }
                             else {
                                 // The failure has been handled: ret is the resolved value.
@@ -329,6 +342,13 @@ function all(items) {
     var countRemaining = items.length;
     var foundError = null;
     var results = Array(items.length);
+    outTask.onCancel(function (val) {
+        items.forEach(function (item) {
+            if (isCancelable(item)) {
+                item.cancel(val);
+            }
+        });
+    });
     var checkFinish = function () {
         if (--countRemaining === 0) {
             if (foundError !== null) {
@@ -364,6 +384,13 @@ exports.all = all;
 function race(items) {
     var outTask = Defer();
     var hasSettled = false;
+    outTask.onCancel(function (val) {
+        items.forEach(function (item) {
+            if (isCancelable(item)) {
+                item.cancel(val);
+            }
+        });
+    });
     items.forEach(function (item) {
         if (isThenable(item)) {
             var task = item;

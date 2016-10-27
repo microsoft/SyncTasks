@@ -40,13 +40,15 @@ export interface Deferred<T> {
 export interface Thenable<T> {
     then<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
 }
-export interface Promise<T> extends Thenable<T> {
+export interface Cancelable {
+    cancel(context?: any): void;
+}
+export interface Promise<T> extends Thenable<T>, Cancelable {
     catch<U>(errorFunc: ErrorFunc<U>): Promise<U>;
     finally(func: (value: T | any) => void): Promise<T>;
     always<U>(func: (value: T | any) => U | Thenable<U>): Promise<U>;
     done(successFunc: (value: T) => void): Promise<T>;
     fail(errorFunc: (error: any) => void): Promise<T>;
-    cancel(context?: any): void;
     thenAsync<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
 }
 export declare function all<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(values: [T1 | Thenable<T1>, T2 | Thenable<T2>, T3 | Thenable<T3>, T4 | Thenable<T4>, T5 | Thenable<T5>, T6 | Thenable<T6>, T7 | Thenable<T7>, T8 | Thenable<T8>, T9 | Thenable<T9>, T10 | Thenable<T10>]): Promise<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10]>;
