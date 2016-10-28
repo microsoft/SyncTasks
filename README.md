@@ -1,8 +1,8 @@
 # SyncTasks
 
 Yet another promise library, but this one is designed intentionally against the ES6 promise pattern, which asynchronously resolves
-promise callbacks in the next tick of the JS engine.  While this is, in most cases, asynchronous resolution is the safest and
-easiest-to-understand implementation of a promise, it adds a huge delay to the resolution, which in most places is unnecessary.
+promise callbacks in the next tick of the JS engine.  In many cases, asynchronous resolution is the safest and
+easiest-to-understand implementation of a promise, but it adds a huge delay to the resolution, which in most places is unnecessary.
 Moreover, when we attempted to wrap the IndexedDB architecture with standard ES6 promises, it falls apart, because IndexedDB
 closes database connections when control is passed back to the main thread.  We started building
 [NoSQLProvider](https://www.github.com/Microsoft/NoSQLProvider/) and immediately ran into this problem.  SyncTasks is the solution
