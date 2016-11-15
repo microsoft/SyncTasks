@@ -108,14 +108,21 @@ var Internal;
             this._storedCallbackSets = [];
             // 'Handled' just means there was a callback set added.
             // Note: If that callback does not handle the error then that callback's task will be 'unhandled' instead of this one.
-            this._errorWillBeHandled = false;
+            this._mustHandleError = true;
         }
         SyncTask.prototype._addCallbackSet = function (set, callbackWillChain) {
             var task = new SyncTask();
             task.onCancel(this.cancel.bind(this));
             set.task = task;
             this._storedCallbackSets.push(set);
-            this._errorWillBeHandled = callbackWillChain || this._errorWillBeHandled;
+            if (callbackWillChain) {
+                // The callback inherits responsibility for "handling" errors.
+                this._mustHandleError = false;
+            }
+            else {
+                // The callback can never "handle" errors since nothing can chain to it.
+                task._mustHandleError = false;
+            }
             // The _resolve* functions handle callbacks being added while they are running.
             if (!this._resolving) {
                 if (this._completedSuccess) {
@@ -202,7 +209,7 @@ var Internal;
         };
         // Make sure any rejected task has its failured handled.
         SyncTask._enforceErrorHandled = function (task) {
-            if (task._errorWillBeHandled) {
+            if (!task._mustHandleError) {
                 return;
             }
             SyncTask._rejectedTasks.push(task);
@@ -213,7 +220,7 @@ var Internal;
                     var rejectedTasks = SyncTask._rejectedTasks;
                     SyncTask._rejectedTasks = [];
                     rejectedTasks.forEach(function (rejectedTask, i) {
-                        if (!rejectedTask._errorWillBeHandled) {
+                        if (rejectedTask._mustHandleError) {
                             // Unhandled!
                             exports.config.unhandledErrorHandler(rejectedTask._storedErrResolution);
                         }

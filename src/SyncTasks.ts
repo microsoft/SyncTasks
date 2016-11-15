@@ -173,7 +173,7 @@ module Internal {
         
         // 'Handled' just means there was a callback set added.
         // Note: If that callback does not handle the error then that callback's task will be 'unhandled' instead of this one.
-        private _errorWillBeHandled = false;
+        private _mustHandleError = true;
         
         private static _rejectedTasks: SyncTask<any>[] = [];
         private static _enforceErrorHandledTimer: number = null;
@@ -183,7 +183,14 @@ module Internal {
             task.onCancel(this.cancel.bind(this));
             set.task = task;
             this._storedCallbackSets.push(set);
-            this._errorWillBeHandled = callbackWillChain || this._errorWillBeHandled;
+
+            if (callbackWillChain) {
+                // The callback inherits responsibility for "handling" errors.
+                this._mustHandleError = false;
+            } else {
+                // The callback can never "handle" errors since nothing can chain to it.
+                task._mustHandleError = false;
+            }
 
             // The _resolve* functions handle callbacks being added while they are running.
             if (!this._resolving) {
@@ -287,7 +294,7 @@ module Internal {
         
         // Make sure any rejected task has its failured handled.
         private static _enforceErrorHandled(task: SyncTask<any>): void {
-            if (task._errorWillBeHandled) {
+            if (!task._mustHandleError) {
                 return;
             }
             
@@ -302,7 +309,7 @@ module Internal {
                     SyncTask._rejectedTasks = [];
                     
                     rejectedTasks.forEach((rejectedTask, i) => {
-                        if (!rejectedTask._errorWillBeHandled) {
+                        if (rejectedTask._mustHandleError) {
                             // Unhandled!
                             config.unhandledErrorHandler(rejectedTask._storedErrResolution);
                         }
