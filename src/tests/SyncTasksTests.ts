@@ -655,6 +655,56 @@ describe('SyncTasks', function () {
         }, 20);
     });
 
+    it('"unhandledErrorHandler": "done" does not create another "unhandled"', (done) => {
+        let unhandledErrorHandlerCalled = false;
+        let catchBlockReached = false;
+        
+        const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
+        SyncTasks.config.unhandledErrorHandler = () => {
+            unhandledErrorHandlerCalled = true;
+        }
+        
+        SyncTasks.Rejected<number>().done(() => {
+            // Should not create a separate "unhandled" error since there is no way to "handle" it from here.
+            // The existing "unhandled" error should continue to be "unhandled", as other tests have verified.
+        }).catch(() => {
+            // "Handle" the failure.
+            catchBlockReached = true;
+        })
+        
+        setTimeout(() => {
+            SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
+            assert(!unhandledErrorHandlerCalled);
+            assert(catchBlockReached);
+            done();
+        }, 20);
+    });
+
+    it('"unhandledErrorHandler": "fail" does not create another "unhandled"', (done) => {
+        let unhandledErrorHandlerCalled = false;
+        let catchBlockReached = false;
+        
+        const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
+        SyncTasks.config.unhandledErrorHandler = () => {
+            unhandledErrorHandlerCalled = true;
+        }
+        
+        SyncTasks.Rejected<number>().fail(() => {
+            // Should not create a separate "unhandled" error since there is no way to "handle" it from here.
+            // The existing "unhandled" error should continue to be "unhandled", as other tests have verified.
+        }).catch(() => {
+            // "Handle" the failure.
+            catchBlockReached = true;
+        })
+        
+        setTimeout(() => {
+            SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
+            assert(!unhandledErrorHandlerCalled);
+            assert(catchBlockReached);
+            done();
+        }, 20);
+    });
+
     it('Add callback while resolving', (done) => {
         const task = SyncTasks.Defer<number>();
         const promise = task.promise();
