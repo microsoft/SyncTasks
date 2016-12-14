@@ -268,7 +268,7 @@ module Internal {
 
         resolve(obj?: T): Deferred<T> {
             if (this._completedSuccess || this._completedFail) {
-                throw 'Already Completed';
+                throw new Error('Already Completed');
             }
             this._completedSuccess = true;
             this._storedResolution = obj;
@@ -280,7 +280,7 @@ module Internal {
 
         reject(obj?: any): Deferred<T> {
             if (this._completedSuccess || this._completedFail) {
-                throw 'Already Completed';
+                throw new Error('Already Completed');
             }
             this._completedFail = true;
             this._storedErrResolution = obj;
@@ -320,7 +320,7 @@ module Internal {
 
         cancel(context?: any): void {
             if (this._wasCanceled) {
-                throw 'Already Canceled';
+                throw new Error('Already Canceled');
             }
 
             this._wasCanceled = true;
