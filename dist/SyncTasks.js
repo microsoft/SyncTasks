@@ -190,7 +190,7 @@ var Internal;
         };
         SyncTask.prototype.resolve = function (obj) {
             if (this._completedSuccess || this._completedFail) {
-                throw 'Already Completed';
+                throw new Error('Already Completed');
             }
             this._completedSuccess = true;
             this._storedResolution = obj;
@@ -199,7 +199,7 @@ var Internal;
         };
         SyncTask.prototype.reject = function (obj) {
             if (this._completedSuccess || this._completedFail) {
-                throw 'Already Completed';
+                throw new Error('Already Completed');
             }
             this._completedFail = true;
             this._storedErrResolution = obj;
@@ -231,7 +231,7 @@ var Internal;
         SyncTask.prototype.cancel = function (context) {
             var _this = this;
             if (this._wasCanceled) {
-                throw 'Already Canceled';
+                throw new Error('Already Canceled');
             }
             this._wasCanceled = true;
             this._cancelContext = context;
