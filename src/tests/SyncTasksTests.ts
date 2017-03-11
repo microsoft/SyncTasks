@@ -5,7 +5,7 @@ import assert = require('assert');
 import SyncTasks = require('../SyncTasks');
 
 describe('SyncTasks', function () {
-    it('Simple - null resolve after then', (done: () => void) => {
+    it('Simple - null resolve after then', (done) => {
         const task = SyncTasks.Defer<number>();
 
         task.promise().then(val => {
@@ -18,7 +18,7 @@ describe('SyncTasks', function () {
         task.resolve(null);
     });
 
-    it('Simple - null then after resolve', (done: () => void) => {
+    it('Simple - null then after resolve', (done) => {
         const task = SyncTasks.Defer<number>();
 
         task.resolve(null);
@@ -31,7 +31,7 @@ describe('SyncTasks', function () {
         });
     });
 
-    it('Simple - reject', (done: () => void) => {
+    it('Simple - reject', (done) => {
         const task = SyncTasks.Defer<number>();
 
         task.reject(2);
@@ -44,7 +44,7 @@ describe('SyncTasks', function () {
         });
     });
 
-    it('Chain from success to success with value', (done: () => void) => {
+    it('Chain from success to success with value', (done) => {
         const task = SyncTasks.Defer<number>();
 
         task.promise().then(val => {
@@ -63,7 +63,7 @@ describe('SyncTasks', function () {
         task.resolve(3);
     });
 
-    it('Chain from error to success with value', (done: () => void) => {
+    it('Chain from error to success with value', (done) => {
         const task = SyncTasks.Defer<number>();
 
         task.promise().then(val => {
@@ -82,7 +82,7 @@ describe('SyncTasks', function () {
         task.reject(2);
     });
 
-    it('Chain from success to success with promise', (done: () => void) => {
+    it('Chain from success to success with promise', (done) => {
         const task = SyncTasks.Defer<number>();
 
         task.promise().then(val => {
@@ -101,7 +101,7 @@ describe('SyncTasks', function () {
         task.resolve(3);
     });
 
-    it('Chain from error to success with promise', (done: () => void) => {
+    it('Chain from error to success with promise', (done) => {
         const task = SyncTasks.Defer<number>();
 
         task.promise().then(val => {
@@ -120,7 +120,7 @@ describe('SyncTasks', function () {
         task.reject(3);
     });
 
-    it('Chain from success to error with promise', (done: () => void) => {
+    it('Chain from success to error with promise', (done) => {
         const task = SyncTasks.Defer<number>();
 
         task.promise().then(val => {
@@ -139,7 +139,7 @@ describe('SyncTasks', function () {
         task.resolve(2);
     });
 
-    it('Chain from error to error with promise', (done: () => void) => {
+    it('Chain from error to error with promise', (done) => {
         const task = SyncTasks.Defer<number>();
 
         task.promise().then(val => {
@@ -158,7 +158,7 @@ describe('SyncTasks', function () {
         task.reject(2);
     });
 
-    it('Chain from success to promise to success with promise', (done: () => void) => {
+    it('Chain from success to promise to success with promise', (done) => {
         const task = SyncTasks.Defer<number>();
 
         task.promise().then(val => {
@@ -181,7 +181,7 @@ describe('SyncTasks', function () {
         task.resolve(3);
     });
 
-    it('Exception in success to error', (done: () => void) => {
+    it('Exception in success to error', (done) => {
         const task = SyncTasks.Defer<number>();
 
         SyncTasks.config.exceptionsToConsole = false;
@@ -201,7 +201,7 @@ describe('SyncTasks', function () {
         task.resolve(3);
     });
 
-    it('Exception in error to error', (done: () => void) => {
+    it('Exception in error to error', (done) => {
         const task = SyncTasks.Defer<number>();
 
         SyncTasks.config.exceptionsToConsole = false;
@@ -221,7 +221,7 @@ describe('SyncTasks', function () {
         task.reject(3);
     });
 
-    it('"done" basic', (done: () => void) => {
+    it('"done" basic', (done) => {
         const task = SyncTasks.Defer<number>();
 
         task.promise().then(val => {
@@ -242,7 +242,7 @@ describe('SyncTasks', function () {
         task.resolve(3);
     });
 
-    it('"done" does not chain', (done: () => void) => {
+    it('"done" does not chain', (done) => {
         const task = SyncTasks.Defer<number>();
         const innertask = SyncTasks.Defer<number>();
 
@@ -271,7 +271,7 @@ describe('SyncTasks', function () {
         innertask.resolve(1);
     });
 
-    it('Finally basic', (done: () => void) => {
+    it('Finally basic', (done) => {
         const task = SyncTasks.Defer<number>();
 
         task.promise().then(val => {
@@ -292,7 +292,7 @@ describe('SyncTasks', function () {
         task.resolve(3);
     });
 
-    it('Finally does not chain', (done: () => void) => {
+    it('Finally does not chain', (done) => {
         const task = SyncTasks.Defer<number>();
         const innertask = SyncTasks.Defer<number>();
 
@@ -321,7 +321,7 @@ describe('SyncTasks', function () {
         innertask.resolve(1);
     });
 
-    it('"all" basic success', (done: () => void) => {
+    it('"all" basic success', (done) => {
         const task = SyncTasks.Defer<number>();
         const task2 = SyncTasks.Defer<number>();
         const task3 = SyncTasks.Defer<number>();
@@ -344,7 +344,7 @@ describe('SyncTasks', function () {
         task4.resolve(4);
     });
 
-    it('"all" basic failure', (done: () => void) => {
+    it('"all" basic failure', (done) => {
         const task = SyncTasks.Defer<number>();
         const task2 = SyncTasks.Defer<number>();
 
@@ -358,7 +358,7 @@ describe('SyncTasks', function () {
         task2.reject(2);
     });
 
-    it('"all" zero tasks', (done: () => void) => {
+    it('"all" zero tasks', (done) => {
         SyncTasks.all([]).then(rets => {
             assert.equal(rets.length, 0);
             done();
@@ -367,7 +367,7 @@ describe('SyncTasks', function () {
         });
     });
 
-    it('"all" single null task', (done: () => void) => {
+    it('"all" single null task', (done) => {
         SyncTasks.all([null]).then(rets => {
             assert.equal(rets.length, 1);
             done();
@@ -376,7 +376,7 @@ describe('SyncTasks', function () {
         });
     });
 
-    it('"all" tasks and nulls', (done: () => void) => {
+    it('"all" tasks and nulls', (done) => {
         const task = SyncTasks.Defer<number>();
 
         SyncTasks.all([null, task.promise()]).then(rets => {
@@ -389,7 +389,7 @@ describe('SyncTasks', function () {
         task.resolve(1);
     });
 
-    it('"race" basic success', (done: () => void) => {
+    it('"race" basic success', (done) => {
         const task = SyncTasks.Defer<number>();
         const task2 = SyncTasks.Defer<number>();
         const task3 = SyncTasks.Defer<number>();
@@ -408,7 +408,7 @@ describe('SyncTasks', function () {
         task4.resolve(4);
     });
 
-    it('"race" basic failure', (done: () => void) => {
+    it('"race" basic failure', (done) => {
         const task = SyncTasks.Defer<number>();
         const task2 = SyncTasks.Defer<number>();
 
@@ -423,7 +423,7 @@ describe('SyncTasks', function () {
         task2.resolve(2);
     });
 
-    it('"race" zero tasks', (done: () => void) => {
+    it('"race" zero tasks', (done) => {
         SyncTasks.race([]).then(ret => {
             assert(false);
         }, err => {
@@ -433,7 +433,7 @@ describe('SyncTasks', function () {
         setTimeout(() => done(), 20);
     });
 
-    it('"race" single null task', (done: () => void) => {
+    it('"race" single null task', (done) => {
         SyncTasks.race([null]).then(ret => {
             assert.equal(ret, null);
             done();
@@ -442,7 +442,7 @@ describe('SyncTasks', function () {
         });
     });
 
-    it('"race" tasks and nulls', (done: () => void) => {
+    it('"race" tasks and nulls', (done) => {
         const task = SyncTasks.Defer<number>();
 
         SyncTasks.race([null, task.promise()]).then(ret => {
@@ -455,7 +455,7 @@ describe('SyncTasks', function () {
         task.resolve(2);
     });
 
-    it('Callbacks resolve synchronously', (done: () => void) => {
+    it('Callbacks resolve synchronously', (done) => {
         const task = SyncTasks.Defer<number>();
         let resolvedCount = 0;
         
@@ -470,7 +470,7 @@ describe('SyncTasks', function () {
         done();
     });
 
-    it('Callbacks resolve in order added', (done: () => void) => {
+    it('Callbacks resolve in order added', (done) => {
         const task = SyncTasks.Defer<number>();
         let resolvedCount = 0;
         
@@ -493,7 +493,7 @@ describe('SyncTasks', function () {
         done();
     });
 
-    it('Failure callbacks resolve in order added', (done: () => void) => {
+    it('Failure callbacks resolve in order added', (done) => {
         const task = SyncTasks.Defer<number>();
         let rejectedCount = 0;
 
@@ -516,7 +516,7 @@ describe('SyncTasks', function () {
         done();
     });
 
-    it('"unhandledErrorHandler": Failure without any callback', (done: () => void) => {
+    it('"unhandledErrorHandler": Failure without any callback', (done) => {
         let unhandledErrorHandlerCalled = false;
         
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
@@ -533,7 +533,7 @@ describe('SyncTasks', function () {
         }, 20);
     });
 
-    it('"unhandledErrorHandler": Failure with only success callback', (done: () => void) => {
+    it('"unhandledErrorHandler": Failure with only success callback', (done) => {
         let unhandledErrorHandlerCalled = false;
         
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
@@ -552,7 +552,7 @@ describe('SyncTasks', function () {
         }, 20);
     });
 
-    it('"unhandledErrorHandler": Failure with success callback with failure callback', (done: () => void) => {
+    it('"unhandledErrorHandler": Failure with success callback with failure callback', (done) => {
         let catchBlockReached = false;
         
         SyncTasks.Rejected<number>().then(() => {
@@ -567,7 +567,7 @@ describe('SyncTasks', function () {
         }, 20);
     });
 
-    it('"unhandledErrorHandler": Success to inner failure without any callback', (done: () => void) => {
+    it('"unhandledErrorHandler": Success to inner failure without any callback', (done) => {
         let unhandledErrorHandlerCalled = false;
         
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
@@ -586,7 +586,7 @@ describe('SyncTasks', function () {
         }, 20);
     });
 
-    it('"unhandledErrorHandler": Failure to inner failure without any callback', (done: () => void) => {
+    it('"unhandledErrorHandler": Failure to inner failure without any callback', (done) => {
         let unhandledErrorHandlerCalled = 0;
         
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
@@ -606,7 +606,7 @@ describe('SyncTasks', function () {
         }, 20);
     });
 
-    it('"unhandledErrorHandler": Each chained promise must handle', (done: () => void) => {
+    it('"unhandledErrorHandler": Each chained promise must handle', (done) => {
         let unhandledErrorHandlerCalled = false;
         let catchBlockReached = false;
         
@@ -633,7 +633,7 @@ describe('SyncTasks', function () {
         }, 20);
     });
 
-    it('"unhandledErrorHandler": "fail" never "handles" the failure', (done: () => void) => {
+    it('"unhandledErrorHandler": "fail" never "handles" the failure', (done) => {
         let unhandledErrorHandlerCalled = false;
         let failBlockReached = false;
         
@@ -655,7 +655,7 @@ describe('SyncTasks', function () {
         }, 20);
     });
 
-    it('"unhandledErrorHandler": "done" does not create another "unhandled"', (done: () => void) => {
+    it('"unhandledErrorHandler": "done" does not create another "unhandled"', (done) => {
         let unhandledErrorHandlerCalled = false;
         let catchBlockReached = false;
         
@@ -680,7 +680,7 @@ describe('SyncTasks', function () {
         }, 20);
     });
 
-    it('"unhandledErrorHandler": "fail" does not create another "unhandled"', (done: () => void) => {
+    it('"unhandledErrorHandler": "fail" does not create another "unhandled"', (done) => {
         let unhandledErrorHandlerCalled = false;
         let catchBlockReached = false;
         
@@ -705,7 +705,7 @@ describe('SyncTasks', function () {
         }, 20);
     });
 
-    it('Add callback while resolving', (done: () => void) => {
+    it('Add callback while resolving', (done) => {
         const task = SyncTasks.Defer<number>();
         const promise = task.promise();
         let resolvedCount = 0;
@@ -738,7 +738,7 @@ describe('SyncTasks', function () {
         });
     });
 
-    it('Add callback while rejecting', (done: () => void) => {
+    it('Add callback while rejecting', (done) => {
         const task = SyncTasks.Defer<number>();
         const promise = task.promise();
         let rejectedCount = 0;
@@ -1028,7 +1028,7 @@ describe('SyncTasks', function () {
         return ret;
     });
 
-    it('deferCallback', (done: () => void) => {
+    it('deferCallback', (done) => {
         let got = false;
         let got2 = false;
         SyncTasks.asyncCallback(() => {
@@ -1046,7 +1046,7 @@ describe('SyncTasks', function () {
         assert(!got2);
     });
 
-    it('thenDeferred Simple', (done: () => void) => {
+    it('thenDeferred Simple', (done) => {
         const task = SyncTasks.Defer<number>();
 
         let tooEarly = true;
