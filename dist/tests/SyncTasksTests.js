@@ -1,7 +1,8 @@
 /// <reference path="dependencies.d.ts"/>
 "use strict";
-var assert = require('assert');
-var SyncTasks = require('../SyncTasks');
+Object.defineProperty(exports, "__esModule", { value: true });
+var assert = require("assert");
+var SyncTasks = require("../SyncTasks");
 describe('SyncTasks', function () {
     it('Simple - null resolve after then', function (done) {
         var task = SyncTasks.Defer();
