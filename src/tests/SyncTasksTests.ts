@@ -522,7 +522,7 @@ describe('SyncTasks', function () {
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
         SyncTasks.config.unhandledErrorHandler = () => {
             unhandledErrorHandlerCalled = true;
-        }
+        };
         
         SyncTasks.Rejected<number>();
         
@@ -539,7 +539,7 @@ describe('SyncTasks', function () {
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
         SyncTasks.config.unhandledErrorHandler = () => {
             unhandledErrorHandlerCalled = true;
-        }
+        };
         
         SyncTasks.Rejected<number>().then(() => {
             assert(false);
@@ -573,7 +573,7 @@ describe('SyncTasks', function () {
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
         SyncTasks.config.unhandledErrorHandler = () => {
             unhandledErrorHandlerCalled = true;
-        }
+        };
         
         SyncTasks.Resolved<number>().then(() => {
             return SyncTasks.Rejected<number>();
@@ -592,7 +592,7 @@ describe('SyncTasks', function () {
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
         SyncTasks.config.unhandledErrorHandler = (n: number) => {
             unhandledErrorHandlerCalled = n;
-        }
+        };
         
         SyncTasks.Rejected<number>(1).catch(() => {
             return SyncTasks.Rejected<number>(2);
@@ -613,7 +613,7 @@ describe('SyncTasks', function () {
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
         SyncTasks.config.unhandledErrorHandler = () => {
             unhandledErrorHandlerCalled = true;
-        }
+        };
         
         const task = SyncTasks.Rejected<number>();
         task.catch(() => {
@@ -640,7 +640,7 @@ describe('SyncTasks', function () {
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
         SyncTasks.config.unhandledErrorHandler = () => {
             unhandledErrorHandlerCalled = true;
-        }
+        };
         
         SyncTasks.Rejected<number>().fail(() => {
             failBlockReached = true;
@@ -662,7 +662,7 @@ describe('SyncTasks', function () {
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
         SyncTasks.config.unhandledErrorHandler = () => {
             unhandledErrorHandlerCalled = true;
-        }
+        };
         
         SyncTasks.Rejected<number>().done(() => {
             // Should not create a separate "unhandled" error since there is no way to "handle" it from here.
@@ -670,7 +670,7 @@ describe('SyncTasks', function () {
         }).catch(() => {
             // "Handle" the failure.
             catchBlockReached = true;
-        })
+        });
         
         setTimeout(() => {
             SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
@@ -687,7 +687,7 @@ describe('SyncTasks', function () {
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
         SyncTasks.config.unhandledErrorHandler = () => {
             unhandledErrorHandlerCalled = true;
-        }
+        };
         
         SyncTasks.Rejected<number>().fail(() => {
             // Should not create a separate "unhandled" error since there is no way to "handle" it from here.
@@ -695,7 +695,7 @@ describe('SyncTasks', function () {
         }).catch(() => {
             // "Handle" the failure.
             catchBlockReached = true;
-        })
+        });
         
         setTimeout(() => {
             SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
