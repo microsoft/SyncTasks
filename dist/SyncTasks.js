@@ -190,23 +190,26 @@ var Internal;
             return this;
         };
         SyncTask.prototype.resolve = function (obj) {
-            if (this._completedSuccess || this._completedFail) {
-                throw new Error('Already Completed');
-            }
+            this._checkState(true);
             this._completedSuccess = true;
             this._storedResolution = obj;
             this._resolveSuccesses();
             return this;
         };
         SyncTask.prototype.reject = function (obj) {
-            if (this._completedSuccess || this._completedFail) {
-                throw new Error('Already Completed');
-            }
+            this._checkState(false);
             this._completedFail = true;
             this._storedErrResolution = obj;
             this._resolveFailures();
             SyncTask._enforceErrorHandled(this);
             return this;
+        };
+        SyncTask.prototype._checkState = function (resolve) {
+            if (this._completedSuccess || this._completedFail) {
+                var message = 'Failed to ' + resolve ? 'resolve' : 'reject' +
+                    ' the task already ' + this._completedSuccess ? 'resolved' : 'rejected';
+                throw new Error(message);
+            }
         };
         // Make sure any rejected task has its failured handled.
         SyncTask._enforceErrorHandled = function (task) {

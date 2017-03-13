@@ -266,30 +266,34 @@ module Internal {
             return this;
         }
 
-        resolve(obj?: T): Deferred<T> {
-            if (this._completedSuccess || this._completedFail) {
-                throw new Error('Already Completed');
-            }
-            this._completedSuccess = true;
-            this._storedResolution = obj;
+        resolve(obj?:  T): Deferred<T> {
+           this._checkState(true);
+           this._completedSuccess = true;
+           this._storedResolution = obj;
 
-            this._resolveSuccesses();
+           this._resolveSuccesses();
 
-            return this;
+           return this;
         }
 
         reject(obj?: any): Deferred<T> {
+           this._checkState(false);
+           this._completedFail = true;
+           this._storedErrResolution = obj;
+
+           this._resolveFailures();
+
+           SyncTask._enforceErrorHandled(this);
+
+           return this;
+        }
+
+        private _checkState(resolve: boolean) {
             if (this._completedSuccess || this._completedFail) {
-                throw new Error('Already Completed');
+                const message = 'Failed to ' + resolve ? 'resolve' : 'reject' +
+                 ' the task is already ' + this._completedSuccess ? 'resolved' : 'rejected';
+                throw new Error(message);
             }
-            this._completedFail = true;
-            this._storedErrResolution = obj;
-
-            this._resolveFailures();
-
-            SyncTask._enforceErrorHandled(this);
-
-            return this;
         }
         
         // Make sure any rejected task has its failured handled.
