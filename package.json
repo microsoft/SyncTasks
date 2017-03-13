@@ -6,7 +6,8 @@
   "scripts": {
     "test": "mocha dist/tests/synctaskstests.js",
     "webtest": "webpack",
-    "build": "tslint --project tsconfig.json -r tslint.json --fix|| true && tsc"
+    "build": "npm run tslint|| true && tsc",
+    "tslint": "tslint --project tsconfig.json -r tslint.json --fix"
   },
   "main": "dist/SyncTasks.js",
   "devDependencies": {
