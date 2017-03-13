@@ -103,6 +103,7 @@ var Internal;
         function SyncTask() {
             this._completedSuccess = false;
             this._completedFail = false;
+            this._traceEnabled = false;
             this._cancelCallbacks = [];
             this._wasCanceled = false;
             this._resolving = false;
@@ -168,6 +169,9 @@ var Internal;
                 failFunc: func
             }, true);
         };
+        SyncTask.prototype.setTracingEnabled = function (enabled) {
+            this._traceEnabled = enabled;
+        };
         // Finally should let you inspect the value of the promise as it passes through without affecting the then chaining
         // i.e. a failed promise with a finally after it should then chain to the fail case of the next then
         SyncTask.prototype.finally = function (func) {
@@ -206,9 +210,15 @@ var Internal;
         };
         SyncTask.prototype._checkState = function (resolve) {
             if (this._completedSuccess || this._completedFail) {
+                if (this._completeStack) {
+                    console.error(this._completeStack.message, this._completeStack.stack);
+                }
                 var message = 'Failed to ' + resolve ? 'resolve' : 'reject' +
-                    ' the task already ' + this._completedSuccess ? 'resolved' : 'rejected';
+                    ' the task is already ' + this._completedSuccess ? 'resolved' : 'rejected';
                 throw new Error(message);
+            }
+            if (this._traceEnabled) {
+                this._completeStack = new Error('Initial ' + resolve ? 'resolve' : 'reject');
             }
         };
         // Make sure any rejected task has its failured handled.

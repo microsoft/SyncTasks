@@ -147,6 +147,13 @@ export interface Promise<T> extends Thenable<T>, Cancelable {
     
     // Defer the resolution of the then until the next event loop, simulating standard A+ promise behavior
     thenAsync<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
+
+    // Turn this option on if you are debugging double resolve/success of this promise.
+    // In case of double resolve assert you will get two stacktraces - for the first resolve and
+    // the second. By default you would see only second resolve.
+    // Option adds extra overhead as on resolve Error object would be created, so it should be used
+    // with caution on release. Estimated overhead on mobile is around 0.5ms per error created on Nexus 5x android.
+    setTracingEnabled(enabled: boolean): void;
 }
 
 module Internal {
@@ -162,6 +169,10 @@ module Internal {
         private _storedErrResolution: any;
         private _completedSuccess = false;
         private _completedFail = false;
+        private _traceEnabled = false;
+        // If _traceEnabled is true we save stacktrace of the first resolution of the task in the _completeStack
+        // we are storing the Error instead of stack because it would be faster in standard scenario.
+        private _completeStack: Error;
 
         private _cancelCallbacks: CancelFunc[] = [];
         private _cancelContext: any;
@@ -241,7 +252,11 @@ module Internal {
                 failFunc: func
             }, true);
         }
-        
+
+        setTracingEnabled(enabled: boolean) : void {
+            this._traceEnabled = enabled;
+        }
+    
         // Finally should let you inspect the value of the promise as it passes through without affecting the then chaining
         // i.e. a failed promise with a finally after it should then chain to the fail case of the next then
         finally(func: (value: T|any) => void): Promise<T> {
@@ -290,9 +305,17 @@ module Internal {
 
         private _checkState(resolve: boolean) {
             if (this._completedSuccess || this._completedFail) {
+                if (this._completeStack) {
+                    console.error(this._completeStack.message, this._completeStack.stack);
+                }
+
                 const message = 'Failed to ' + resolve ? 'resolve' : 'reject' +
                  ' the task is already ' + this._completedSuccess ? 'resolved' : 'rejected';
                 throw new Error(message);
+            }
+
+            if (this._traceEnabled) {
+                this._completeStack = new Error('Initial ' +  resolve ? 'resolve' : 'reject');
             }
         }
         
