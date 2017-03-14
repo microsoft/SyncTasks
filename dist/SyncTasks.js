@@ -171,6 +171,7 @@ var Internal;
         };
         SyncTask.prototype.setTracingEnabled = function (enabled) {
             this._traceEnabled = enabled;
+            return this;
         };
         // Finally should let you inspect the value of the promise as it passes through without affecting the then chaining
         // i.e. a failed promise with a finally after it should then chain to the fail case of the next then

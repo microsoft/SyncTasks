@@ -153,7 +153,7 @@ export interface Promise<T> extends Thenable<T>, Cancelable {
     // the second. By default you would see only second resolve.
     // Option adds extra overhead as on resolve Error object would be created, so it should be used
     // with caution on release. Estimated overhead on mobile is around 0.5ms per error created on Nexus 5x android.
-    setTracingEnabled(enabled: boolean): void;
+    setTracingEnabled(enabled: boolean): Promise<T>;
 }
 
 module Internal {
@@ -253,8 +253,9 @@ module Internal {
             }, true);
         }
 
-        setTracingEnabled(enabled: boolean) : void {
+        setTracingEnabled(enabled: boolean) : Promise<T> {
             this._traceEnabled = enabled;
+            return this;
         }
     
         // Finally should let you inspect the value of the promise as it passes through without affecting the then chaining
