@@ -21,7 +21,7 @@ exports.config = {
     // digging through a stack trace.
     catchExceptions: true,
     // Use this option in order to debug double resolution asserts locally.
-    // Enabling this option globally in release could have a negative impact on application performance.
+    // Enabling this option in the release would have a negative impact on the application performance.
     traceEnabled: false,
     exceptionHandler: null,
     // If an ErrorFunc is not added to the task (then, catch, always) before the task rejects or synchonously

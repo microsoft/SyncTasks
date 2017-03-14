@@ -41,6 +41,11 @@ SyncTasks has the basic `Defer` call, but also helper methods to save on common 
 - `fromThenable(thenable)` - A handy helper function to wrap any sort of `Thenable` (usually used for wrapping ES6 Promises) into
     a SyncTask.  This takes the thenable and maps its success and failure cases into a new `SyncTasks.Promise` that resolve and
     reject with the results of the passed thenable.
+- `setTracingEnabled(boolean)` - This option allows enabling of double resolution tracing individually per Promise.
+    Could be used in the release in cases then the problem couldn't be reproduced locally.
+    If option enabled assert will give you two stack traces - for the first resolve and the second. By default, you would see only second resolve stack trace.
+    Keep in mind that it adds an extra overhead as resolve method call will create an extra Error object, so it should be used with caution in the release. 
+    Estimated overhead on mobile is around 0.05ms per resolve/reject call on Nexus 5x android.
 
 ### SyncTasks.Deferred Reference
 

@@ -22,7 +22,7 @@ export const config = {
     catchExceptions: true,
 
     // Use this option in order to debug double resolution asserts locally.
-    // Enabling this option globally in release could have a negative impact on application performance.
+    // Enabling this option in the release would have a negative impact on the application performance.
     traceEnabled: false,
 
     exceptionHandler: <(ex: Error) => void>null,
@@ -152,13 +152,6 @@ export interface Promise<T> extends Thenable<T>, Cancelable {
     // Defer the resolution of the then until the next event loop, simulating standard A+ promise behavior
     thenAsync<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
 
-    // This option allows enabling of double resolution tracing individually per Promise.
-    // Could be used in the release build in cases problem couldn't be reproduced locally.
-    // In case of double resolve assert you will get two stack traces - for the first resolve and
-    // the second. By default, you would see only second resolve.
-    // Option adds extra overhead as resolve method call will create extra Error object, so it should be used
-    // with caution in the release. 
-    // Estimated overhead on mobile is around 0.05ms per Error created on Nexus 5x android.
     setTracingEnabled(enabled: boolean): Promise<T>;
 }
 
