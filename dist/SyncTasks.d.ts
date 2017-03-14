@@ -13,6 +13,7 @@
 export declare const config: {
     exceptionsToConsole: boolean;
     catchExceptions: boolean;
+    traceEnabled: boolean;
     exceptionHandler: (ex: Error) => void;
     unhandledErrorHandler: (err: any) => void;
 };
@@ -50,6 +51,7 @@ export interface Promise<T> extends Thenable<T>, Cancelable {
     done(successFunc: (value: T) => void): Promise<T>;
     fail(errorFunc: (error: any) => void): Promise<T>;
     thenAsync<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
+    setTracingEnabled(enabled: boolean): Promise<T>;
 }
 export declare type Raceable<T> = T | Thenable<T>;
 export declare function all<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(values: [Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>, Raceable<T6>, Raceable<T7>, Raceable<T8>, Raceable<T9>, Raceable<T10>]): Promise<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10]>;

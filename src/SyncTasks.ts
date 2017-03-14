@@ -21,6 +21,10 @@ export const config = {
     // digging through a stack trace.
     catchExceptions: true,
 
+    // Use this option in order to debug double resolution asserts locally.
+    // Enabling this option in the release would have a negative impact on the application performance.
+    traceEnabled: false,
+
     exceptionHandler: <(ex: Error) => void>null,
     
     // If an ErrorFunc is not added to the task (then, catch, always) before the task rejects or synchonously
@@ -147,6 +151,8 @@ export interface Promise<T> extends Thenable<T>, Cancelable {
     
     // Defer the resolution of the then until the next event loop, simulating standard A+ promise behavior
     thenAsync<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
+
+    setTracingEnabled(enabled: boolean): Promise<T>;
 }
 
 module Internal {
@@ -162,6 +168,10 @@ module Internal {
         private _storedErrResolution: any;
         private _completedSuccess = false;
         private _completedFail = false;
+        private _traceEnabled = false;
+        // If _traceEnabled is true we save stacktrace of the first resolution of the task in the _completeStack
+        // we are storing the Error instead of stack because it would be faster in standard scenario.
+        private _completeStack: Error;
 
         private _cancelCallbacks: CancelFunc[] = [];
         private _cancelContext: any;
@@ -241,7 +251,12 @@ module Internal {
                 failFunc: func
             }, true);
         }
-        
+
+        setTracingEnabled(enabled: boolean) : Promise<T> {
+            this._traceEnabled = enabled;
+            return this;
+        }
+    
         // Finally should let you inspect the value of the promise as it passes through without affecting the then chaining
         // i.e. a failed promise with a finally after it should then chain to the fail case of the next then
         finally(func: (value: T|any) => void): Promise<T> {
@@ -266,30 +281,42 @@ module Internal {
             return this;
         }
 
-        resolve(obj?: T): Deferred<T> {
-            if (this._completedSuccess || this._completedFail) {
-                throw new Error('Already Completed');
-            }
-            this._completedSuccess = true;
-            this._storedResolution = obj;
+        resolve(obj?:  T): Deferred<T> {
+           this._checkState(true);
+           this._completedSuccess = true;
+           this._storedResolution = obj;
 
-            this._resolveSuccesses();
+           this._resolveSuccesses();
 
-            return this;
+           return this;
         }
 
         reject(obj?: any): Deferred<T> {
+           this._checkState(false);
+           this._completedFail = true;
+           this._storedErrResolution = obj;
+
+           this._resolveFailures();
+
+           SyncTask._enforceErrorHandled(this);
+
+           return this;
+        }
+
+        private _checkState(resolve: boolean) {
             if (this._completedSuccess || this._completedFail) {
-                throw new Error('Already Completed');
+                if (this._completeStack) {
+                    console.error(this._completeStack.message, this._completeStack.stack);
+                }
+
+                const message = 'Failed to ' + resolve ? 'resolve' : 'reject' +
+                    ': the task is already ' + this._completedSuccess ? 'resolved' : 'rejected';
+                throw new Error(message);
             }
-            this._completedFail = true;
-            this._storedErrResolution = obj;
 
-            this._resolveFailures();
-
-            SyncTask._enforceErrorHandled(this);
-
-            return this;
+            if (config.traceEnabled || this._traceEnabled) {
+                this._completeStack = new Error('Initial ' +  resolve ? 'resolve' : 'reject');
+            }
         }
         
         // Make sure any rejected task has its failured handled.
