@@ -13,6 +13,7 @@
 export declare const config: {
     exceptionsToConsole: boolean;
     catchExceptions: boolean;
+    traceEnabled: boolean;
     exceptionHandler: (ex: Error) => void;
     unhandledErrorHandler: (err: any) => void;
 };

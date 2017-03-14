@@ -21,6 +21,10 @@ export const config = {
     // digging through a stack trace.
     catchExceptions: true,
 
+    // Use this option in order to debug double resolution asserts locally.
+    // Enabling this option globally in release could have a negative impact on application performance.
+    traceEnabled: false,
+
     exceptionHandler: <(ex: Error) => void>null,
     
     // If an ErrorFunc is not added to the task (then, catch, always) before the task rejects or synchonously
@@ -148,11 +152,13 @@ export interface Promise<T> extends Thenable<T>, Cancelable {
     // Defer the resolution of the then until the next event loop, simulating standard A+ promise behavior
     thenAsync<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
 
-    // Turn this option on if you are debugging double resolve/success of this promise.
-    // In case of double resolve assert you will get two stacktraces - for the first resolve and
-    // the second. By default you would see only second resolve.
-    // Option adds extra overhead as on resolve Error object would be created, so it should be used
-    // with caution on release. Estimated overhead on mobile is around 0.5ms per error created on Nexus 5x android.
+    // This option allows enabling of double resolution tracing individually per Promise.
+    // Could be used in the release build in cases problem couldn't be reproduced locally.
+    // In case of double resolve assert you will get two stack traces - for the first resolve and
+    // the second. By default, you would see only second resolve.
+    // Option adds extra overhead as resolve method call will create extra Error object, so it should be used
+    // with caution in the release. 
+    // Estimated overhead on mobile is around 0.05ms per Error created on Nexus 5x android.
     setTracingEnabled(enabled: boolean): Promise<T>;
 }
 
@@ -311,11 +317,11 @@ module Internal {
                 }
 
                 const message = 'Failed to ' + resolve ? 'resolve' : 'reject' +
-                 ' the task is already ' + this._completedSuccess ? 'resolved' : 'rejected';
+                    ': the task is already ' + this._completedSuccess ? 'resolved' : 'rejected';
                 throw new Error(message);
             }
 
-            if (this._traceEnabled) {
+            if (config.traceEnabled || this._traceEnabled) {
                 this._completeStack = new Error('Initial ' +  resolve ? 'resolve' : 'reject');
             }
         }

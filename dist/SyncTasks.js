@@ -20,6 +20,9 @@ exports.config = {
     // Disable this for debugging when you'd rather the debugger caught the exception synchronously rather than
     // digging through a stack trace.
     catchExceptions: true,
+    // Use this option in order to debug double resolution asserts locally.
+    // Enabling this option globally in release could have a negative impact on application performance.
+    traceEnabled: false,
     exceptionHandler: null,
     // If an ErrorFunc is not added to the task (then, catch, always) before the task rejects or synchonously
     // after that, then this function is called with the error. Default throws the error.
@@ -215,10 +218,10 @@ var Internal;
                     console.error(this._completeStack.message, this._completeStack.stack);
                 }
                 var message = 'Failed to ' + resolve ? 'resolve' : 'reject' +
-                    ' the task is already ' + this._completedSuccess ? 'resolved' : 'rejected';
+                    ': the task is already ' + this._completedSuccess ? 'resolved' : 'rejected';
                 throw new Error(message);
             }
-            if (this._traceEnabled) {
+            if (exports.config.traceEnabled || this._traceEnabled) {
                 this._completeStack = new Error('Initial ' + resolve ? 'resolve' : 'reject');
             }
         };
