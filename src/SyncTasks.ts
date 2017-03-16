@@ -616,3 +616,16 @@ export function race(items: any[]): Promise<any> {
     
     return outTask.promise();
 }
+
+export type RaceTimerResponse<T> = { timedOut: boolean, result?: T };
+export function raceTimer<T>(promise: Promise<T>, timeMs: number): Promise<RaceTimerResponse<T>> {
+    let timerDef = Defer<RaceTimerResponse<T>>();
+    const token = setTimeout(() => {
+        timerDef.resolve({ timedOut: true });
+    }, timeMs);
+    const adaptedPromise = promise.then(resp => {
+        clearTimeout(token);
+        return { timedOut: false, result: resp } as RaceTimerResponse<T>;
+    });
+    return race([adaptedPromise, timerDef.promise()]);
+}

@@ -442,3 +442,15 @@ function race(items) {
     return outTask.promise();
 }
 exports.race = race;
+function raceTimer(promise, timeMs) {
+    var timerDef = Defer();
+    var token = setTimeout(function () {
+        timerDef.resolve({ timedOut: true });
+    }, timeMs);
+    var adaptedPromise = promise.then(function (resp) {
+        clearTimeout(token);
+        return { timedOut: false, result: resp };
+    });
+    return race([adaptedPromise, timerDef.promise()]);
+}
+exports.raceTimer = raceTimer;

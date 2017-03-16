@@ -74,3 +74,8 @@ export declare function race<T1, T2, T3, T4>(values: [Raceable<T1>, Raceable<T2>
 export declare function race<T1, T2, T3>(values: [Raceable<T1>, Raceable<T2>, Raceable<T3>]): Promise<T1 | T2 | T3>;
 export declare function race<T1, T2>(values: [Raceable<T1>, Raceable<T2>]): Promise<T1 | T2>;
 export declare function race<T>(values: (T | Thenable<T>)[]): Promise<T[]>;
+export declare type RaceTimerResponse<T> = {
+    timedOut: boolean;
+    result?: T;
+};
+export declare function raceTimer<T>(promise: Promise<T>, timeMs: number): Promise<RaceTimerResponse<T>>;
