@@ -217,8 +217,8 @@ var Internal;
                 if (this._completeStack) {
                     console.error(this._completeStack.message, this._completeStack.stack);
                 }
-                var message = 'Failed to ' + resolve ? 'resolve' : 'reject' +
-                    ': the task is already ' + this._completedSuccess ? 'resolved' : 'rejected';
+                var message = 'Failed to ' + (resolve ? 'resolve' : 'reject') +
+                    ': the task is already ' + (this._completedSuccess ? 'resolved' : 'rejected');
                 throw new Error(message);
             }
             if (exports.config.traceEnabled || this._traceEnabled) {
