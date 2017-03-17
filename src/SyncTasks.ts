@@ -309,8 +309,8 @@ module Internal {
                     console.error(this._completeStack.message, this._completeStack.stack);
                 }
 
-                const message = 'Failed to ' + resolve ? 'resolve' : 'reject' +
-                    ': the task is already ' + this._completedSuccess ? 'resolved' : 'rejected';
+                const message = 'Failed to ' + (resolve ? 'resolve' : 'reject') +
+                    ': the task is already ' + (this._completedSuccess ? 'resolved' : 'rejected');
                 throw new Error(message);
             }
 
