@@ -140,11 +140,14 @@ var Internal;
             return task.promise();
         };
         SyncTask.prototype.onCancel = function (callback) {
-            if (this._wasCanceled) {
-                callback(this._cancelContext);
-            }
-            else {
-                this._cancelCallbacks.push(callback);
+            // Only register cancel callback handler on promise that hasn't been completed
+            if (!this._completedSuccess && !this._completedFail) {
+                if (this._wasCanceled) {
+                    callback(this._cancelContext);
+                }
+                else {
+                    this._cancelCallbacks.push(callback);
+                }
             }
             return this;
         };
@@ -255,7 +258,9 @@ var Internal;
             this._cancelContext = context;
             if (this._cancelCallbacks.length > 0) {
                 this._cancelCallbacks.forEach(function (callback) {
-                    callback(_this._cancelContext);
+                    if (!_this._completedSuccess && !_this._completedFail) {
+                        callback(_this._cancelContext);
+                    }
                 });
             }
         };
@@ -293,7 +298,7 @@ var Internal;
                         }
                     }
                     if (isThenable(ret)) {
-                        // The success block of a then returned a new promise, so 
+                        // The success block of a then returned a new promise, so
                         ret.then(function (r) { callback.task.resolve(r); }, function (e) { callback.task.reject(e); });
                     }
                     else {

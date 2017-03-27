@@ -26,7 +26,7 @@ export const config = {
     traceEnabled: false,
 
     exceptionHandler: <(ex: Error) => void>null,
-    
+
     // If an ErrorFunc is not added to the task (then, catch, always) before the task rejects or synchonously
     // after that, then this function is called with the error. Default throws the error.
     unhandledErrorHandler: <(err: any) => void>((err: any) => { throw err; })
@@ -92,7 +92,7 @@ export function asyncCallback(callback: () => void) {
         } else {
             setTimeout(resolveAsyncCallbacks, 0);
         }
-    }    
+    }
 }
 
 function resolveAsyncCallbacks() {
@@ -140,15 +140,15 @@ export interface Cancelable {
 
 export interface Promise<T> extends Thenable<T>, Cancelable {
     catch<U>(errorFunc: ErrorFunc<U>): Promise<U>;
-    
+
     finally(func: (value: T|any) => void): Promise<T>;
-    
+
     always<U>(func: (value: T|any) => U | Thenable<U>): Promise<U>;
 
     done(successFunc: (value: T) => void): Promise<T>;
 
     fail(errorFunc: (error: any) => void): Promise<T>;
-    
+
     // Defer the resolution of the then until the next event loop, simulating standard A+ promise behavior
     thenAsync<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
 
@@ -180,11 +180,11 @@ module Internal {
         private _resolving = false;
 
         private _storedCallbackSets: CallbackSet<T, any>[] = [];
-        
+
         // 'Handled' just means there was a callback set added.
         // Note: If that callback does not handle the error then that callback's task will be 'unhandled' instead of this one.
         private _mustHandleError = true;
-        
+
         private static _rejectedTasks: SyncTask<any>[] = [];
         private static _enforceErrorHandledTimer: number = null;
 
@@ -215,10 +215,13 @@ module Internal {
         }
 
         onCancel(callback: CancelFunc): Deferred<T> {
-            if (this._wasCanceled) {
-                callback(this._cancelContext);
-            } else {
-                this._cancelCallbacks.push(callback);
+            // Only register cancel callback handler on promise that hasn't been completed
+            if (!this._completedSuccess && !this._completedFail) {
+                if (this._wasCanceled) {
+                    callback(this._cancelContext);
+                } else {
+                    this._cancelCallbacks.push(callback);
+                }
             }
 
             return this;
@@ -238,7 +241,7 @@ module Internal {
                 asyncCallback: true
             }, true);
         }
-        
+
         catch<U>(errorFunc: ErrorFunc<U>): Promise<U> {
             return this._addCallbackSet<U>({
                 failFunc: errorFunc
@@ -256,7 +259,7 @@ module Internal {
             this._traceEnabled = enabled;
             return this;
         }
-    
+
         // Finally should let you inspect the value of the promise as it passes through without affecting the then chaining
         // i.e. a failed promise with a finally after it should then chain to the fail case of the next then
         finally(func: (value: T|any) => void): Promise<T> {
@@ -318,23 +321,23 @@ module Internal {
                 this._completeStack = new Error('Initial ' +  resolve ? 'resolve' : 'reject');
             }
         }
-        
+
         // Make sure any rejected task has its failured handled.
         private static _enforceErrorHandled(task: SyncTask<any>): void {
             if (!task._mustHandleError) {
                 return;
             }
-            
+
             SyncTask._rejectedTasks.push(task);
-            
+
             // Wait for some async time in the future to check these tasks.
             if (!SyncTask._enforceErrorHandledTimer) {
                 SyncTask._enforceErrorHandledTimer = setTimeout(() => {
                     SyncTask._enforceErrorHandledTimer = null;
-                    
+
                     const rejectedTasks = SyncTask._rejectedTasks;
                     SyncTask._rejectedTasks = [];
-                    
+
                     rejectedTasks.forEach((rejectedTask, i) => {
                         if (rejectedTask._mustHandleError) {
                             // Unhandled!
@@ -355,7 +358,9 @@ module Internal {
 
             if (this._cancelCallbacks.length > 0) {
                 this._cancelCallbacks.forEach(callback => {
-                    callback(this._cancelContext);
+                    if (!this._completedSuccess && !this._completedFail) {
+                        callback(this._cancelContext);
+                    }
                 });
             }
         }
@@ -395,7 +400,7 @@ module Internal {
                         }
                     }
                     if (isThenable(ret)) {
-                        // The success block of a then returned a new promise, so 
+                        // The success block of a then returned a new promise, so
                         ret.then(r => { callback.task.resolve(r); }, e => { callback.task.reject(e); });
                     } else {
                         callback.task.resolve(ret);
@@ -481,7 +486,7 @@ export function all<T1, T2, T3, T4, T5, T6, T7>(values:
 export function all<T1, T2, T3, T4, T5, T6>(values:
  [Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>, Raceable<T6>]): Promise<[T1, T2, T3, T4, T5, T6]>;
 
-export function all<T1, T2, T3, T4, T5>(values: 
+export function all<T1, T2, T3, T4, T5>(values:
 [Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>]): Promise<[T1, T2, T3, T4, T5]>;
 
 export function all<T1, T2, T3, T4>(values: [Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>]): Promise<[T1, T2, T3, T4]>;
@@ -582,7 +587,7 @@ export function race<T>(values: (T|Thenable<T>)[]): Promise<T[]>;
 export function race(items: any[]): Promise<any> {
     const outTask = Defer<any>();
     let hasSettled = false;
-    
+
     outTask.onCancel((val) => {
         items.forEach(item => {
             if (isCancelable(item)) {
@@ -613,7 +618,7 @@ export function race(items: any[]): Promise<any> {
             }
         }
     });
-    
+
     return outTask.promise();
 }
 

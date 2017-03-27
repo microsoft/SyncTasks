@@ -44,7 +44,7 @@ SyncTasks has the basic `Defer` call, but also helper methods to save on common 
 - `setTracingEnabled(boolean)` - This option allows enabling of double resolution tracing individually per Promise.
     Could be used in the release in cases then the problem couldn't be reproduced locally.
     If option enabled assert will give you two stack traces - for the first resolve and the second. By default, you would see only second resolve stack trace.
-    Keep in mind that it adds an extra overhead as resolve method call will create an extra Error object, so it should be used with caution in the release. 
+    Keep in mind that it adds an extra overhead as resolve method call will create an extra Error object, so it should be used with caution in the release.
     Estimated overhead on mobile is around 0.05ms per resolve/reject call on Nexus 5x android.
 
 ### SyncTasks.Deferred Reference
@@ -55,8 +55,8 @@ A created `Deferral` object only has 4 methods:
     success chain of any of the promises.
 - `reject(obj?)` - Resolves any promises created by the deferral with failure.  Takes an optional value that is passed through the
     success chain of any of the promises.
-- `onCancel(callback)` - Adds a cancellation callback function that is called whenever promises created by the deferral get `.cancel`
-    called on them (or called on chained promises chain back up to this one.)
+- `onCancel(callback)` - Adds a cancellation callback function that is called whenever non-resolved/rejected promises created by the deferral get `.cancel`
+    called on them (or called on chained promises chain back up to this one.) This callback can be used to handle aborting async tasks that return promises.
 - `promise()` - Returns a `SyncTasks.Promise` object from the deferral, which is then passed around the world.
 
 ### SyncTasks.Promise Reference
@@ -89,7 +89,7 @@ support.  The methods supported are:
     in either case.  The callback function is always passed the optional resolution value, but in `finally`'s case, you have
     no idea whether it was called based on success or failure.  These three functions all return the same original promise
     object, so you can attach multiple "observation functions" to the same promise without having to store it in a temporary
-    variable.   
+    variable.
 - `cancel(obj?)` - This method will notify the original deferral object of cancellation, and will pass it the optional value
     it is called with, but has no further effects.  If the deferral is not handling cancellation, then this call will do
     absolutely nothing -- it does not guarantee any effects like failure resolution or any sort of stopping of chaining.
@@ -151,5 +151,5 @@ setTimeout(() => {
 
 // 200 ms after running this, you will end up with a new console log line, "Failure: Sorry".  The success case will not be
 // run because it was already resolved with failure.  If you change the 200ms timer to 600ms, then your console will change to
-// "Success: hi" because the cancellation will happen after the success already did, so the `didFinish` check will swallow it. 
+// "Success: hi" because the cancellation will happen after the success already did, so the `didFinish` check will swallow it.
 ```
