@@ -5,6 +5,10 @@ import assert = require('assert');
 import SyncTasks = require('../SyncTasks');
 
 describe('SyncTasks', function () {
+    function noop() {/*noop*/}
+
+    const waitTime = 25;
+
     it('Simple - null resolve after then', (done) => {
         const task = SyncTasks.Defer<number>();
 
@@ -771,20 +775,21 @@ describe('SyncTasks', function () {
         });
     });
 
-    it('Cancel task happy path', () => {
+    it('Cancel task (happy path)', () => {
         let canceled = false;
         let cancelContext: any;
 
         const task = SyncTasks.Defer<number>();
+        const promise = task.promise();
         task.onCancel((context) => {
             canceled = true;
             cancelContext = context;
             task.reject(5);
         });
 
-        const promise = task.promise();
         promise.cancel(4);
 
+        // Check the cancel caused rejection.
         return promise.then(() => {
             assert(false);
             return SyncTasks.Rejected();
@@ -796,19 +801,19 @@ describe('SyncTasks', function () {
         });
     });
 
-    it('Cancel task chained', () => {
+    it('Cancel chain cancels task (bubble up)', () => {
         let canceled = false;
         let cancelContext: any;
 
         const task = SyncTasks.Defer<number>();
+        const promise = task.promise();
         task.onCancel((context) => {
             canceled = true;
             cancelContext = context;
             task.reject(5);
         });
 
-        const promise = task.promise();
-        const secPromise = promise.then(() => {
+        const chain = promise.then(() => {
             assert(false);
             return SyncTasks.Rejected();
         }, (err) => {
@@ -817,8 +822,10 @@ describe('SyncTasks', function () {
             assert.equal(cancelContext, 4);
             return -1;
         });
-        secPromise.cancel(4);
 
+        chain.cancel(4);
+
+        // Check the chain cancel caused task rejection.
         return promise.then(() => {
             assert(false);
             return SyncTasks.Rejected();
@@ -830,22 +837,209 @@ describe('SyncTasks', function () {
         });
     });
 
-    it('Cancel task late chained early cancel', () => {
+    it('Cancel deep chain cancels task (bubble up)', () => {
         let canceled = false;
         let cancelContext: any;
 
         const task = SyncTasks.Defer<number>();
         const promise = task.promise();
+        task.onCancel((context) => {
+            canceled = true;
+            cancelContext = context;
+            task.reject(5);
+        });
+
+        const chain = promise.then(() => {
+            assert(false);
+            return SyncTasks.Rejected();
+        }, (err) => {
+            assert.equal(err, 5);
+            assert(canceled);
+            assert.equal(cancelContext, 4);
+            return -1;
+        }).always(noop)
+            .always(noop);
+
+        chain.cancel(4);
+
+        // Check the chain cancel caused task rejection.
+        return promise.then(() => {
+            assert(false);
+            return SyncTasks.Rejected();
+        }, (err) => {
+            assert.equal(err, 5);
+            assert(canceled);
+            assert.equal(cancelContext, 4);
+            return SyncTasks.Resolved<number>();
+        });
+    });
+
+    it('Cancel finished task does not call cancellation handlers', () => {
+        const task = SyncTasks.Defer<number>();
+        const promise = task.promise();
+        task.onCancel((context) => {
+            assert(false);
+        });
+
+        task.resolve();
         promise.cancel(4);
+    });
+
+    it('Cancel finished task does not cancel inner', () => {
+        let canceled = false;
+        let cancelContext: any;
+
+        const task = SyncTasks.Defer<number>();
+        const promise = task.promise();
+        task.onCancel((context) => {
+            assert(false);
+        });
         
-        const ret = promise.then(() => {
-            const newTask = SyncTasks.Defer<number>();
-            newTask.onCancel((context) => {
+        const chain = promise.then(() => {
+            const inner = SyncTasks.Defer<number>();
+            inner.onCancel((context) => {
+                assert(false);
+            });
+            return inner.promise();
+        });
+
+        task.resolve();
+        promise.cancel(4);
+    });
+
+    it('Cancel task then resolve during cancellation then does not call further handlers', () => {
+        let canceled = false;
+
+        const task = SyncTasks.Defer<number>();
+        const promise = task.promise();
+        task.onCancel(() => {
+            canceled = true;
+        });
+        task.onCancel(() => {
+            task.resolve();
+        });
+        task.onCancel(() => {
+            assert(false);
+        });
+
+        promise.cancel();
+        assert(canceled);
+        
+        // Check the onCancel caused task resolution.
+        return promise;
+    });
+
+    it('Cancel task then reject during cancellation then does not call further handlers', () => {
+        let canceled = false;
+
+        const task = SyncTasks.Defer<number>();
+        const promise = task.promise();
+        task.onCancel(() => {
+            canceled = true;
+        });
+        task.onCancel(() => {
+            task.reject(5);
+        });
+        task.onCancel(() => {
+            assert(false);
+        });
+
+        promise.cancel();
+        assert(canceled);
+        
+        // Check the onCancel caused task rejection.
+        return promise.then(() => {
+            assert(false);
+            return SyncTasks.Rejected();
+        }, (err) => {
+            assert.equal(err, 5);
+            return SyncTasks.Resolved<number>();
+        });
+    });
+
+    it('Cancel inner does not cancel root task (no bubble out)', () => {
+        let canceled = false;
+        let cancelContext: any;
+
+        const task = SyncTasks.Defer<number>();
+        const promise = task.promise();
+        task.onCancel((context) => {
+            assert(false);
+        });
+    
+        const inner = SyncTasks.Defer<number>();
+        inner.onCancel((context) => {
+            canceled = true;
+            cancelContext = context;
+            inner.reject(5);
+        });
+        const innerPromise = inner.promise();
+        
+        const chain = promise.then(() => {
+            return innerPromise;
+        }, (err) => {
+            assert(false);
+            return SyncTasks.Rejected();
+        }).catch(err => {
+            assert.equal(err, 5);
+            assert(canceled);
+            assert.equal(cancelContext, 4);
+            return SyncTasks.Resolved<number>();
+        });
+
+        innerPromise.cancel(4);
+        task.resolve();
+        return chain;
+    });
+
+    it('Cancel chain cancels inner task (bubble in), with task resolved late', () => {
+        let canceled = false;
+        let cancelContext: any;
+
+        const task = SyncTasks.Defer<number>();
+        const promise = task.promise();
+        
+        const chain = promise.then(() => {
+            const inner = SyncTasks.Defer<number>();
+            inner.onCancel((context) => {
                 canceled = true;
                 cancelContext = context;
-                newTask.reject(5);
+                inner.reject(5);
             });
-            return newTask.promise();
+            return inner.promise();
+        }, (err) => {
+            assert(false);
+            return SyncTasks.Rejected();
+        }).catch(err => {
+            assert.equal(err, 5);
+            assert(canceled);
+            assert.equal(cancelContext, 4);
+            return SyncTasks.Resolved<number>();
+        });
+
+        chain.cancel(4);
+        task.resolve();
+        return chain;
+    });
+
+    it('Cancel chain cancels inner task (bubble in), with task resolved early', () => {
+        let canceled = false;
+        let cancelContext: any;
+
+        const task = SyncTasks.Defer<number>();
+        const promise = task.promise();
+        
+        const chain = promise.then(() => {
+            const inner = SyncTasks.Defer<number>();
+            inner.onCancel((context) => {
+                canceled = true;
+                cancelContext = context;
+                inner.reject(5);
+            });
+            setTimeout(() => {
+                chain.cancel(4);
+            }, waitTime);
+            return inner.promise();
         }, (err) => {
             assert(false);
             return SyncTasks.Rejected();
@@ -857,10 +1051,43 @@ describe('SyncTasks', function () {
         });
 
         task.resolve();
-        return ret;
+        return chain;
     });
 
-    it('Cancel task late chained late cancel', () => {
+    it('Cancel chain cancels inner chained task, with task resolved late', () => {
+        let canceled = false;
+        let cancelContext: any;
+
+        const task = SyncTasks.Defer<number>();
+        const promise = task.promise();
+        
+        const chain = promise.then(() => {
+            const inner = SyncTasks.Defer<number>();
+            inner.onCancel((context) => {
+                canceled = true;
+                cancelContext = context;
+                inner.reject(5);
+            });
+            return inner.promise().then(() => {
+                // Chain another promise in place to make sure it works its way up to inner at some point.
+                return 6;
+            });
+        }, (err) => {
+            assert(false);
+            return SyncTasks.Rejected();
+        }).catch(err => {
+            assert.equal(err, 5);
+            assert(canceled);
+            assert.equal(cancelContext, 4);
+            return SyncTasks.Resolved<number>();
+        });
+
+        chain.cancel(4);
+        task.resolve();
+        return chain;
+    });
+
+    it('Cancel chain cancels inner chained task, with task resolved early', () => {
         let canceled = false;
         let cancelContext: any;
 
@@ -875,38 +1102,8 @@ describe('SyncTasks', function () {
                 newTask.reject(5);
             });
             setTimeout(() => {
-                promise.cancel(4);
-            }, 100);
-            return newTask.promise();
-        }, (err) => {
-            assert(false);
-            return SyncTasks.Rejected();
-        }).catch(err => {
-            assert.equal(err, 5);
-            assert(canceled);
-            assert.equal(cancelContext, 4);
-            return SyncTasks.Resolved<number>();
-        });
-
-        task.resolve();
-        return ret;
-    });
-
-    it('Cancel task late double-chained inner early cancel', () => {
-        let canceled = false;
-        let cancelContext: any;
-
-        const task = SyncTasks.Defer<number>();
-        const promise = task.promise();
-        promise.cancel(4);
-        
-        const ret = promise.then(() => {
-            const newTask = SyncTasks.Defer<number>();
-            newTask.onCancel((context) => {
-                canceled = true;
-                cancelContext = context;
-                newTask.reject(5);
-            });
+                ret.cancel(4);
+            }, waitTime);
             return newTask.promise().then(() => {
                 // Chain another promise in place to make sure it works its way up to the newTask at some point.
                 return 6;
@@ -925,48 +1122,94 @@ describe('SyncTasks', function () {
         return ret;
     });
 
-    it('Cancel task late double-chained inner late cancel', () => {
-        let canceled = false;
-        let cancelContext: any;
+    it('Cancel .all task cancels array of tasks', () => {
+        let canceled1 = false;
+        let canceled2 = false;
 
-        const task = SyncTasks.Defer<number>();
-        const promise = task.promise();
-        
-        const ret = promise.then(() => {
-            const newTask = SyncTasks.Defer<number>();
-            newTask.onCancel((context) => {
-                canceled = true;
-                cancelContext = context;
-                newTask.reject(5);
-            });
-            setTimeout(() => {
-                promise.cancel(4);
-            }, 100);
-            return newTask.promise().then(() => {
-                // Chain another promise in place to make sure it works its way up to the newTask at some point.
-                return 6;
-            });
-        }, (err) => {
-            assert(false);
-            return SyncTasks.Rejected();
-        }).catch(err => {
-            assert.equal(err, 5);
-            assert(canceled);
-            assert.equal(cancelContext, 4);
-            return SyncTasks.Resolved<number>();
+        const task1 = SyncTasks.Defer<number>();
+        const promise1 = task1.promise();
+        task1.onCancel((context) => {
+            canceled1 = true;
+            assert.equal(context, 4);
         });
 
-        task.resolve();
-        return ret;
+        const task2 = SyncTasks.Defer<number>();
+        const promise2 = task2.promise();
+        task2.onCancel((context) => {
+            canceled2 = true;
+            assert.equal(context, 4);
+        });
+
+        const allPromise = SyncTasks.all([promise1, promise2]);
+        allPromise.cancel(4);
+        assert(canceled1);
+        assert(canceled2);
     });
 
-    it('Cancel task late double-chained inner with .all and early cancel', () => {
+    it('Cancel chain from .all cancels array of tasks', () => {
+        let canceled1 = false;
+
+        const task1 = SyncTasks.Defer<number>();
+        const promise1 = task1.promise();
+        task1.onCancel((context) => {
+            canceled1 = true;
+            assert.equal(context, 4);
+        });
+
+        const chain = SyncTasks.all([promise1])
+            .always(noop);
+
+        chain.cancel(4);
+        assert(canceled1);
+    });
+
+    it('Cancel .race task cancels array of tasks', () => {
+        let canceled1 = false;
+        let canceled2 = false;
+
+        const task1 = SyncTasks.Defer<number>();
+        const promise1 = task1.promise();
+        task1.onCancel((context) => {
+            canceled1 = true;
+            assert.equal(context, 4);
+        });
+
+        const task2 = SyncTasks.Defer<number>();
+        const promise2 = task2.promise();
+        task2.onCancel((context) => {
+            canceled2 = true;
+            assert.equal(context, 4);
+        });
+
+        const allPromise = SyncTasks.race([promise1, promise2]);
+        allPromise.cancel(4);
+        assert(canceled1);
+        assert(canceled2);
+    });
+
+    it('Cancel chain from .race cancels array of task', () => {
+        let canceled1 = false;
+
+        const task1 = SyncTasks.Defer<number>();
+        const promise1 = task1.promise();
+        task1.onCancel((context) => {
+            canceled1 = true;
+            assert.equal(context, 4);
+        });
+
+        const chain = SyncTasks.race([promise1])
+            .always(noop);
+
+        chain.cancel(4);
+        assert(canceled1);
+    });
+
+    it('Cancel chain cancels inner chained .all task, with task resolved late', () => {
         let canceled = false;
         let cancelContext: any;
 
         const task = SyncTasks.Defer<number>();
         const promise = task.promise();
-        promise.cancel(4);
         
         const ret = promise.then(() => {
             const newTask = SyncTasks.Defer<number>();
@@ -989,11 +1232,12 @@ describe('SyncTasks', function () {
             return SyncTasks.Resolved<number>();
         });
 
+        ret.cancel(4);
         task.resolve();
         return ret;
     });
 
-    it('Cancel task late double-chained inner with .all and late cancel', () => {
+    it('Cancel chain cancels inner chained .all task, with task resolved early', () => {
         let canceled = false;
         let cancelContext: any;
 
@@ -1008,8 +1252,8 @@ describe('SyncTasks', function () {
                 newTask.reject(5);
             });
             setTimeout(() => {
-                promise.cancel(4);
-            }, 100);
+                ret.cancel(4);
+            }, waitTime);
             return SyncTasks.all([newTask.promise()]).then(() => {
                 // Chain another promise in place to make sure it works its way up to the newTask at some point.
                 return 6;
@@ -1026,6 +1270,54 @@ describe('SyncTasks', function () {
 
         task.resolve();
         return ret;
+    });
+
+    it('Cancel shared task does not cancel children (no bubble down)', () => {
+        const task = SyncTasks.Defer<number>();
+        const promise = task.promise();
+        
+        const inner1 = SyncTasks.Defer<number>();
+        inner1.onCancel((context) => {
+            assert(false);
+        });
+
+        const inner2 = SyncTasks.Defer<number>();
+        inner2.onCancel((context) => {
+            assert(false);
+        });
+
+        promise.then(() => inner1.promise());
+        promise.then(() => inner2.promise());
+
+        promise.cancel(4);
+        task.resolve();
+    });
+
+    it('Cancel chain of shared task does not cancel other chain (no bubble across)', () => {
+        let canceled = false;
+        let cancelContext: any;
+
+        const task = SyncTasks.Defer<number>();
+        const promise = task.promise();
+        
+        const inner1 = SyncTasks.Defer<number>();
+        inner1.onCancel((context) => {
+            canceled = true;
+            cancelContext = context;
+        });
+
+        const inner2 = SyncTasks.Defer<number>();
+        inner2.onCancel((context) => {
+            assert(false);
+        });
+
+        const chain1 = promise.then(() => inner1.promise());
+        promise.then(() => inner2.promise());
+
+        chain1.cancel(4);
+        task.resolve();
+        assert(canceled);
+        assert.equal(cancelContext, 4);
     });
 
     it('deferCallback', (done) => {

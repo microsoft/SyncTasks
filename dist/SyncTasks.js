@@ -116,8 +116,13 @@ var Internal;
             this._mustHandleError = true;
         }
         SyncTask.prototype._addCallbackSet = function (set, callbackWillChain) {
+            var _this = this;
             var task = new SyncTask();
-            task.onCancel(this.cancel.bind(this));
+            task.onCancel(function (context) {
+                set.wasCanceled = true;
+                set.cancelContext = context;
+                _this.cancel(context);
+            });
             set.task = task;
             this._storedCallbackSets.push(set);
             if (callbackWillChain) {
@@ -252,7 +257,8 @@ var Internal;
         SyncTask.prototype.cancel = function (context) {
             var _this = this;
             if (this._wasCanceled) {
-                throw new Error('Already Canceled');
+                console.warn('SyncTasks: Already Canceled');
+                return;
             }
             this._wasCanceled = true;
             this._cancelContext = context;
@@ -277,7 +283,7 @@ var Internal;
                 this._storedCallbackSets = [];
                 callbacks.forEach(function (callback) {
                     if (callback.asyncCallback) {
-                        asyncCallback(_this._resolveCallback.bind(_this, callback));
+                        asyncCallback(function () { return _this._resolveCallback(callback); });
                     }
                     else {
                         _this._resolveCallback(callback);
@@ -292,9 +298,11 @@ var Internal;
                 run(function () {
                     var ret = callback.successFunc(_this._storedResolution);
                     if (isCancelable(ret)) {
-                        _this._cancelCallbacks.push(ret.cancel.bind(ret));
-                        if (_this._wasCanceled) {
-                            ret.cancel(_this._cancelContext);
+                        if (callback.wasCanceled) {
+                            ret.cancel(callback.cancelContext);
+                        }
+                        else {
+                            callback.task.onCancel(function (context) { return ret.cancel(context); });
                         }
                     }
                     if (isThenable(ret)) {
@@ -326,9 +334,11 @@ var Internal;
                         run(function () {
                             var ret = callback.failFunc(_this._storedErrResolution);
                             if (isCancelable(ret)) {
-                                _this._cancelCallbacks.push(ret.cancel.bind(ret));
-                                if (_this._wasCanceled) {
-                                    ret.cancel(_this._cancelContext);
+                                if (callback.wasCanceled) {
+                                    ret.cancel(callback.cancelContext);
+                                }
+                                else {
+                                    callback.task.onCancel(function (context) { return ret.cancel(context); });
                                 }
                             }
                             if (isThenable(ret)) {

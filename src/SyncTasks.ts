@@ -161,6 +161,8 @@ module Internal {
         failFunc?: ErrorFunc<U>;
         task?: Deferred<any>;
         asyncCallback?: boolean;
+        wasCanceled?: boolean;
+        cancelContext?: any;
     }
 
     export class SyncTask<T> implements Deferred<T>, Promise<T> {
@@ -190,7 +192,11 @@ module Internal {
 
         private _addCallbackSet<U>(set: CallbackSet<T, U>, callbackWillChain: boolean): Promise<U> {
             const task = new SyncTask<U>();
-            task.onCancel(this.cancel.bind(this));
+            task.onCancel(context => {
+                set.wasCanceled = true;
+                set.cancelContext = context;
+                this.cancel(context);
+            });
             set.task = task;
             this._storedCallbackSets.push(set);
 
@@ -380,7 +386,7 @@ module Internal {
 
                 callbacks.forEach(callback => {
                     if (callback.asyncCallback) {
-                        asyncCallback(this._resolveCallback.bind(this, callback));
+                        asyncCallback(() => this._resolveCallback(callback));
                     } else {
                         this._resolveCallback(callback);
                     }
@@ -394,10 +400,12 @@ module Internal {
                 run(() => {
                     const ret = callback.successFunc(this._storedResolution);
                     if (isCancelable(ret)) {
-                        this._cancelCallbacks.push(ret.cancel.bind(ret));
-                        if (this._wasCanceled) {
-                            ret.cancel(this._cancelContext);
+                        if (callback.wasCanceled) {
+                            ret.cancel(callback.cancelContext);
+                        } else {
+                            callback.task.onCancel(context => ret.cancel(context));
                         }
+                        // Note: don't care if ret is canceled. We don't need to bubble out since this is already resolved.
                     }
                     if (isThenable(ret)) {
                         // The success block of a then returned a new promise, so
@@ -428,10 +436,12 @@ module Internal {
                         run(() => {
                             const ret = callback.failFunc(this._storedErrResolution);
                             if (isCancelable(ret)) {
-                                this._cancelCallbacks.push(ret.cancel.bind(ret));
-                                if (this._wasCanceled) {
-                                    ret.cancel(this._cancelContext);
+                                if (callback.wasCanceled) {
+                                    ret.cancel(callback.cancelContext);
+                                } else {
+                                    callback.task.onCancel(context => ret.cancel(context));
                                 }
+                                // Note: don't care if ret is canceled. We don't need to bubble out since this is already rejected.
                             }
                             if (isThenable(ret)) {
                                 ret.then(r => { callback.task.resolve(r); }, e => { callback.task.reject(e); });

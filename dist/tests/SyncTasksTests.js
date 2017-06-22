@@ -694,7 +694,6 @@ describe('SyncTasks', function () {
         var cancelContext;
         var task = SyncTasks.Defer();
         var promise = task.promise();
-        promise.cancel(4);
         var ret = promise.then(function () {
             var newTask = SyncTasks.Defer();
             newTask.onCancel(function (context) {
@@ -712,6 +711,7 @@ describe('SyncTasks', function () {
             assert.equal(cancelContext, 4);
             return SyncTasks.Resolved();
         });
+        ret.cancel(4);
         task.resolve();
         return ret;
     });
@@ -728,7 +728,7 @@ describe('SyncTasks', function () {
                 newTask.reject(5);
             });
             setTimeout(function () {
-                promise.cancel(4);
+                ret.cancel(4);
             }, 100);
             return newTask.promise();
         }, function (err) {
@@ -748,7 +748,6 @@ describe('SyncTasks', function () {
         var cancelContext;
         var task = SyncTasks.Defer();
         var promise = task.promise();
-        promise.cancel(4);
         var ret = promise.then(function () {
             var newTask = SyncTasks.Defer();
             newTask.onCancel(function (context) {
@@ -769,6 +768,7 @@ describe('SyncTasks', function () {
             assert.equal(cancelContext, 4);
             return SyncTasks.Resolved();
         });
+        ret.cancel(4);
         task.resolve();
         return ret;
     });
@@ -785,7 +785,7 @@ describe('SyncTasks', function () {
                 newTask.reject(5);
             });
             setTimeout(function () {
-                promise.cancel(4);
+                ret.cancel(4);
             }, 100);
             return newTask.promise().then(function () {
                 // Chain another promise in place to make sure it works its way up to the newTask at some point.
@@ -808,7 +808,6 @@ describe('SyncTasks', function () {
         var cancelContext;
         var task = SyncTasks.Defer();
         var promise = task.promise();
-        promise.cancel(4);
         var ret = promise.then(function () {
             var newTask = SyncTasks.Defer();
             newTask.onCancel(function (context) {
@@ -829,6 +828,7 @@ describe('SyncTasks', function () {
             assert.equal(cancelContext, 4);
             return SyncTasks.Resolved();
         });
+        ret.cancel(4);
         task.resolve();
         return ret;
     });
@@ -845,7 +845,7 @@ describe('SyncTasks', function () {
                 newTask.reject(5);
             });
             setTimeout(function () {
-                promise.cancel(4);
+                ret.cancel(4);
             }, 100);
             return SyncTasks.all([newTask.promise()]).then(function () {
                 // Chain another promise in place to make sure it works its way up to the newTask at some point.
@@ -862,6 +862,27 @@ describe('SyncTasks', function () {
         });
         task.resolve();
         return ret;
+    });
+    it('Cancel two children tasks does not throw', function () {
+        var task = SyncTasks.Defer();
+        var p = task.promise();
+        var p1 = p.then(function () { return 1; });
+        var p2 = p.then(function () { return 2; });
+        p1.cancel('Cancels p');
+        p2.cancel('Also cancels p');
+    });
+    it('Cancel two children tasks does not call provided onCancel callback twice', function () {
+        var wasCanceled = false;
+        var task = SyncTasks.Defer();
+        task.onCancel(function (key) {
+            assert(!wasCanceled);
+            wasCanceled = true;
+        });
+        var p = task.promise();
+        var p1 = p.then(function () { return 1; });
+        var p2 = p.then(function () { return 2; });
+        p1.cancel('Cancels p');
+        p2.cancel('Also cancels p');
     });
     it('deferCallback', function (done) {
         var got = false;
