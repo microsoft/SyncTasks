@@ -7,6 +7,8 @@ import SyncTasks = require('../SyncTasks');
 describe('SyncTasks', function () {
     function noop() {/*noop*/}
 
+    // Amount of time to wait to ensure all sync and trivially async (e.g. setTimeout(..., 0)) things have finished.
+    // Useful to do something 'later'.
     const waitTime = 25;
 
     it('Simple - null resolve after then', (done) => {
@@ -857,7 +859,10 @@ describe('SyncTasks', function () {
             assert(canceled);
             assert.equal(cancelContext, 4);
             return -1;
-        }).always(noop)
+        })
+            // Make the chain longer to further separate the cancel from the task.
+            .always(noop)
+            .always(noop)
             .always(noop);
 
         chain.cancel(4);

@@ -257,8 +257,7 @@ var Internal;
         SyncTask.prototype.cancel = function (context) {
             var _this = this;
             if (this._wasCanceled) {
-                console.warn('SyncTasks: Already Canceled');
-                return;
+                throw new Error('Already Canceled');
             }
             this._wasCanceled = true;
             this._cancelContext = context;
@@ -304,6 +303,7 @@ var Internal;
                         else {
                             callback.task.onCancel(function (context) { return ret.cancel(context); });
                         }
+                        // Note: don't care if ret is canceled. We don't need to bubble out since this is already resolved.
                     }
                     if (isThenable(ret)) {
                         // The success block of a then returned a new promise, so
@@ -340,6 +340,7 @@ var Internal;
                                 else {
                                     callback.task.onCancel(function (context) { return ret.cancel(context); });
                                 }
+                                // Note: don't care if ret is canceled. We don't need to bubble out since this is already rejected.
                             }
                             if (isThenable(ret)) {
                                 ret.then(function (r) { callback.task.resolve(r); }, function (e) { callback.task.reject(e); });
