@@ -116,8 +116,13 @@ var Internal;
             this._mustHandleError = true;
         }
         SyncTask.prototype._addCallbackSet = function (set, callbackWillChain) {
+            var _this = this;
             var task = new SyncTask();
-            task.onCancel(this.cancel.bind(this));
+            task.onCancel(function (context) {
+                set.wasCanceled = true;
+                set.cancelContext = context;
+                _this.cancel(context);
+            });
             set.task = task;
             this._storedCallbackSets.push(set);
             if (callbackWillChain) {
@@ -277,7 +282,7 @@ var Internal;
                 this._storedCallbackSets = [];
                 callbacks.forEach(function (callback) {
                     if (callback.asyncCallback) {
-                        asyncCallback(_this._resolveCallback.bind(_this, callback));
+                        asyncCallback(function () { return _this._resolveCallback(callback); });
                     }
                     else {
                         _this._resolveCallback(callback);
@@ -292,10 +297,13 @@ var Internal;
                 run(function () {
                     var ret = callback.successFunc(_this._storedResolution);
                     if (isCancelable(ret)) {
-                        _this._cancelCallbacks.push(ret.cancel.bind(ret));
-                        if (_this._wasCanceled) {
-                            ret.cancel(_this._cancelContext);
+                        if (callback.wasCanceled) {
+                            ret.cancel(callback.cancelContext);
                         }
+                        else {
+                            callback.task.onCancel(function (context) { return ret.cancel(context); });
+                        }
+                        // Note: don't care if ret is canceled. We don't need to bubble out since this is already resolved.
                     }
                     if (isThenable(ret)) {
                         // The success block of a then returned a new promise, so
@@ -326,10 +334,13 @@ var Internal;
                         run(function () {
                             var ret = callback.failFunc(_this._storedErrResolution);
                             if (isCancelable(ret)) {
-                                _this._cancelCallbacks.push(ret.cancel.bind(ret));
-                                if (_this._wasCanceled) {
-                                    ret.cancel(_this._cancelContext);
+                                if (callback.wasCanceled) {
+                                    ret.cancel(callback.cancelContext);
                                 }
+                                else {
+                                    callback.task.onCancel(function (context) { return ret.cancel(context); });
+                                }
+                                // Note: don't care if ret is canceled. We don't need to bubble out since this is already rejected.
                             }
                             if (isThenable(ret)) {
                                 ret.then(function (r) { callback.task.resolve(r); }, function (e) { callback.task.reject(e); });

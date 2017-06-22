@@ -1,6 +1,6 @@
 {
   "name": "synctasks",
-  "version": "0.2.17",
+  "version": "0.2.18",
   "description": "An explicitly non-A+ Promise library that resolves promises synchronously",
   "author": "David de Regt <David.de.Regt@microsoft.com>",
   "scripts": {
