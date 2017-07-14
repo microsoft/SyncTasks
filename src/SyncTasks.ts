@@ -472,7 +472,7 @@ module Internal {
     }
 }
 
-export type Raceable<T> = T | Thenable<T>;
+export type Raceable<T> = T | Thenable<T> | undefined | null;
 
 // Resolves once all of the given items resolve (non-thenables are 'resolved').
 // Rejects once any of the given thenables reject.

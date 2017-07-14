@@ -53,7 +53,7 @@ export interface Promise<T> extends Thenable<T>, Cancelable {
     thenAsync<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): Promise<U>;
     setTracingEnabled(enabled: boolean): Promise<T>;
 }
-export declare type Raceable<T> = T | Thenable<T>;
+export declare type Raceable<T> = T | Thenable<T> | undefined | null;
 export declare function all<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(values: [Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>, Raceable<T6>, Raceable<T7>, Raceable<T8>, Raceable<T9>, Raceable<T10>]): Promise<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10]>;
 export declare function all<T1, T2, T3, T4, T5, T6, T7, T8, T9>(values: [Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>, Raceable<T6>, Raceable<T7>, Raceable<T8>, Raceable<T9>]): Promise<[T1, T2, T3, T4, T5, T6, T7, T8, T9]>;
 export declare function all<T1, T2, T3, T4, T5, T6, T7, T8>(values: [Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>, Raceable<T6>, Raceable<T7>, Raceable<T8>]): Promise<[T1, T2, T3, T4, T5, T6, T7, T8]>;

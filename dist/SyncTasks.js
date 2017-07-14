@@ -11,7 +11,6 @@
  * automatically close.
  */
 "use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
 exports.config = {
     // If we catch exceptions in success/fail blocks, it silently falls back to the fail case of the outer promise.
     // If this is global variable is true, it will also spit out a console.error with the exception for debugging.
@@ -303,7 +302,6 @@ var Internal;
                         else {
                             callback.task.onCancel(function (context) { return ret.cancel(context); });
                         }
-                        // Note: don't care if ret is canceled. We don't need to bubble out since this is already resolved.
                     }
                     if (isThenable(ret)) {
                         // The success block of a then returned a new promise, so
@@ -340,7 +338,6 @@ var Internal;
                                 else {
                                     callback.task.onCancel(function (context) { return ret.cancel(context); });
                                 }
-                                // Note: don't care if ret is canceled. We don't need to bubble out since this is already rejected.
                             }
                             if (isThenable(ret)) {
                                 ret.then(function (r) { callback.task.resolve(r); }, function (e) { callback.task.reject(e); });
@@ -369,10 +366,10 @@ var Internal;
                 exports.config.exceptionHandler(e);
             }
         };
+        SyncTask._rejectedTasks = [];
+        SyncTask._enforceErrorHandledTimer = null;
         return SyncTask;
     }());
-    SyncTask._rejectedTasks = [];
-    SyncTask._enforceErrorHandledTimer = null;
     Internal.SyncTask = SyncTask;
 })(Internal || (Internal = {}));
 function all(items) {

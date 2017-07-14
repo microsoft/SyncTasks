@@ -1,8 +1,7 @@
 /// <reference path="dependencies.d.ts"/>
 "use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-var assert = require("assert");
-var SyncTasks = require("../SyncTasks");
+var assert = require('assert');
+var SyncTasks = require('../SyncTasks');
 describe('SyncTasks', function () {
     function noop() { }
     // Amount of time to wait to ensure all sync and trivially async (e.g. setTimeout(..., 0)) things have finished.
