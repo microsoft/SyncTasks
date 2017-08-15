@@ -1325,6 +1325,138 @@ describe('SyncTasks', function () {
         assert.equal(cancelContext, 4);
     });
 
+    it('Cancel throws for "double cancel"', () => {
+        const oldCatchExceptions = SyncTasks.config.catchExceptions;
+        SyncTasks.config.catchExceptions = false;
+
+        const promise = SyncTasks.Defer<void>().promise();
+        promise.cancel();
+        try {
+            promise.cancel();
+            assert.ok(false);
+        } catch (e) {
+            // Expected.
+            SyncTasks.config.catchExceptions = oldCatchExceptions;
+        }
+    });
+
+    it('Cancel does not throw for "double cancel" due to bubble up', () => {
+        const oldCatchExceptions = SyncTasks.config.catchExceptions;
+        SyncTasks.config.catchExceptions = false;
+
+        let countCancels = 0;
+        const task = SyncTasks.Defer<void>();
+        task.onCancel(context => {
+            countCancels++;
+        });
+
+        const root = task.promise();
+        const promise1 = root.then(noop);
+        const promise2 = root.then(noop);
+
+        try {
+            promise1.cancel();
+            promise2.cancel();
+            SyncTasks.config.catchExceptions = oldCatchExceptions;
+        } catch (e) {
+            assert.ok(false);
+        }
+
+        // Make sure the root's cancel was called, but we should not be called back more than once.
+        assert.equal(countCancels, 1);
+    });
+
+    it('Cancel does not throw for "double cancel" due to bubble in', () => {
+        const oldCatchExceptions = SyncTasks.config.catchExceptions;
+        SyncTasks.config.catchExceptions = false;
+
+        const task = SyncTasks.Defer<number>();
+        const promise = task.promise();
+        
+        const chain = promise.then(() => {
+            const inner = SyncTasks.Defer<number>();
+            const innerPromise = inner.promise();
+            innerPromise.cancel();
+            return innerPromise;
+        });
+
+        try {
+            chain.cancel(32);
+            task.resolve();
+            SyncTasks.config.catchExceptions = oldCatchExceptions;
+        } catch (e) {
+            assert.ok(false);
+        }
+    });
+
+    it('Cancel .all does not throw for "double cancel" due to bubble up', () => {
+        const oldCatchExceptions = SyncTasks.config.catchExceptions;
+        SyncTasks.config.catchExceptions = false;
+
+        const promise1 = SyncTasks.Defer<void>().promise();
+        const promise2 = SyncTasks.Defer<void>().promise();
+        const sink = SyncTasks.all([promise1, promise2]);
+
+        try {
+            sink.cancel();
+            promise1.cancel();
+            SyncTasks.config.catchExceptions = oldCatchExceptions;
+        } catch (e) {
+            assert.ok(false);
+        }
+    });
+
+    it('Cancel .all does not throw for "double cancel" due to bubble up for already canceled promise', () => {
+        const oldCatchExceptions = SyncTasks.config.catchExceptions;
+        SyncTasks.config.catchExceptions = false;
+
+        const promise1 = SyncTasks.Defer<void>().promise();
+        const promise2 = SyncTasks.Defer<void>().promise();
+        const sink = SyncTasks.all([promise1, promise2]);
+
+        try {
+            promise1.cancel();
+            sink.cancel();
+            SyncTasks.config.catchExceptions = oldCatchExceptions;
+        } catch (e) {
+            assert.ok(false);
+        }
+    });
+
+    it('Cancel .race does not throw for "double cancel" due to bubble up', () => {
+        const oldCatchExceptions = SyncTasks.config.catchExceptions;
+        SyncTasks.config.catchExceptions = false;
+
+        const promise1 = SyncTasks.Defer<void>().promise();
+        const promise2 = SyncTasks.Defer<void>().promise();
+        const sink = SyncTasks.race([promise1, promise2]);
+
+        try {
+            sink.cancel();
+            promise1.cancel();
+            SyncTasks.config.catchExceptions = oldCatchExceptions;
+        } catch (e) {
+            assert.ok(false);
+        }
+    });
+
+    it('Cancel .race does not throw for "double cancel" due to bubble up for already canceled promise', () => {
+        const oldCatchExceptions = SyncTasks.config.catchExceptions;
+        SyncTasks.config.catchExceptions = false;
+
+        const promise1 = SyncTasks.Defer<void>().promise();
+        const promise2 = SyncTasks.Defer<void>().promise();
+        const sink = SyncTasks.race([promise1, promise2]);
+
+        try {
+            promise1.cancel();
+            sink.cancel();
+            SyncTasks.config.catchExceptions = oldCatchExceptions;
+        } catch (e) {
+            assert.ok(false);
+        }
+    });
+
     it('deferCallback', (done) => {
         let got = false;
         let got2 = false;

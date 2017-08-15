@@ -178,6 +178,8 @@ module Internal {
         private _cancelCallbacks: CancelFunc[] = [];
         private _cancelContext: any;
         private _wasCanceled = false;
+        // The owner of this promise should not call cancel twice. However, cancellation through bubbling is independent of this.
+        private _wasExplicitlyCanceled = false;
 
         private _resolving = false;
 
@@ -195,7 +197,8 @@ module Internal {
             task.onCancel(context => {
                 set.wasCanceled = true;
                 set.cancelContext = context;
-                this.cancel(context);
+                // Note: Cancel due to bubbling should not throw if the public cancel is called before/after.
+                this._cancelInternal(context);
             });
             set.task = task;
             this._storedCallbackSets.push(set);
@@ -355,8 +358,17 @@ module Internal {
         }
 
         cancel(context?: any): void {
-            if (this._wasCanceled) {
+            if (this._wasExplicitlyCanceled) {
                 throw new Error('Already Canceled');
+            }
+
+            this._wasExplicitlyCanceled = true;
+            this._cancelInternal(context);
+        }
+
+        private _cancelInternal(context?: any): void {
+            if (this._wasCanceled) {
+                return;
             }
 
             this._wasCanceled = true;
@@ -368,6 +380,18 @@ module Internal {
                         callback(this._cancelContext);
                     }
                 });
+            }
+        }
+
+        static cancelOtherInternal(promise: Cancelable, context: any): void {
+            // Warning: this cast is a bit dirty, but we need to avoid .cancel for SyncTasks.
+            // Note: Cancel due to bubbling should not throw if the public cancel is called before/after.
+            const task = promise as SyncTask<any>;
+            if (task._storedCallbackSets && task._cancelInternal) {
+                // Is probably a SyncTask.
+                task._cancelInternal(context);
+            } else {
+                promise.cancel(context);
             }
         }
 
@@ -401,9 +425,9 @@ module Internal {
                     const ret = callback.successFunc(this._storedResolution);
                     if (isCancelable(ret)) {
                         if (callback.wasCanceled) {
-                            ret.cancel(callback.cancelContext);
+                            SyncTask.cancelOtherInternal(ret, callback.cancelContext);
                         } else {
-                            callback.task.onCancel(context => ret.cancel(context));
+                            callback.task.onCancel(context => SyncTask.cancelOtherInternal(ret, context));
                         }
                         // Note: don't care if ret is canceled. We don't need to bubble out since this is already resolved.
                     }
@@ -437,9 +461,9 @@ module Internal {
                             const ret = callback.failFunc(this._storedErrResolution);
                             if (isCancelable(ret)) {
                                 if (callback.wasCanceled) {
-                                    ret.cancel(callback.cancelContext);
+                                    SyncTask.cancelOtherInternal(ret, callback.cancelContext);
                                 } else {
-                                    callback.task.onCancel(context => ret.cancel(context));
+                                    callback.task.onCancel(context => SyncTask.cancelOtherInternal(ret, context));
                                 }
                                 // Note: don't care if ret is canceled. We don't need to bubble out since this is already rejected.
                             }
@@ -520,7 +544,7 @@ export function all(items: any[]): Promise<any[]> {
     outTask.onCancel((val) => {
         items.forEach(item => {
             if (isCancelable(item)) {
-                item.cancel(val);
+                Internal.SyncTask.cancelOtherInternal(item, val);
             }
         });
     });
@@ -601,7 +625,7 @@ export function race(items: any[]): Promise<any> {
     outTask.onCancel((val) => {
         items.forEach(item => {
             if (isCancelable(item)) {
-                item.cancel(val);
+                Internal.SyncTask.cancelOtherInternal(item, val);
             }
         });
     });
