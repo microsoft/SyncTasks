@@ -5,8 +5,12 @@
         "module": "commonjs",
         "target": "es5",
         "outDir": "dist/",
+        "noImplicitAny": true,
         "noImplicitReturns": true,
-        "noImplicitAny": true
+        "noImplicitThis": true,
+        "noUnusedLocals": true,
+        "strictNullChecks": true,
+        "forceConsistentCasingInFileNames": true
     },
     
     "filesGlob": [

@@ -25,7 +25,7 @@ export const config = {
     // Enabling this option in the release would have a negative impact on the application performance.
     traceEnabled: false,
 
-    exceptionHandler: <(ex: Error) => void>null,
+    exceptionHandler: undefined as (((ex: Error) => void)|undefined),
 
     // If an ErrorFunc is not added to the task (then, catch, always) before the task rejects or synchonously
     // after that, then this function is called with the error. Default throws the error.
@@ -44,8 +44,8 @@ export function fromThenable<T>(thenable: Es6Thenable<T>): Promise<T> {
     // the braces, the error handler rejects the outer promise, but returns
     // void. If we remove the braces, it would *also* return something which
     // would be unhandled
-    thenable.then<T>(
-        value => { deferred.resolve(value); return undefined; },
+    thenable.then(
+        value => { deferred.resolve(value); },
         (err: any) => { deferred.reject(err); });
     return deferred.promise();
 }
@@ -66,7 +66,7 @@ function run<T, C extends any>(trier: () => T, catcher?: (e: Error) => C): T | C
         try {
             return trier();
         } catch (e) {
-            return catcher(e);
+            return catcher!!!(e);
         }
     } else {
         return trier();
@@ -106,18 +106,6 @@ function resolveAsyncCallbacks() {
 export type SuccessFunc<T, U> = (value: T) => U | Thenable<U> | void;
 export type ErrorFunc<U> = (error: any) => U | Thenable<U> | void;
 export type CancelFunc = (context: any) => void;
-
-export function Defer<T>(): Deferred<T> {
-    return new Internal.SyncTask<T>();
-}
-
-export function Resolved<T>(val?: T): Promise<T> {
-    return new Internal.SyncTask<T>().resolve(val).promise();
-}
-
-export function Rejected<T>(val?: any): Promise<T> {
-    return new Internal.SyncTask<T>().reject(val).promise();
-}
 
 export interface Deferred<T> {
     resolve(obj?: T): Deferred<T>;
@@ -159,15 +147,15 @@ module Internal {
     export interface CallbackSet<T, U> {
         successFunc?: SuccessFunc<T, U>;
         failFunc?: ErrorFunc<U>;
-        task?: Deferred<any>;
+        task?: Deferred<U>;
         asyncCallback?: boolean;
         wasCanceled?: boolean;
         cancelContext?: any;
     }
 
     export class SyncTask<T> implements Deferred<T>, Promise<T> {
-        private _storedResolution: T;
-        private _storedErrResolution: any;
+        private _storedResolution: T|undefined;
+        private _storedErrResolution: any|undefined;
         private _completedSuccess = false;
         private _completedFail = false;
         private _traceEnabled = false;
@@ -190,7 +178,7 @@ module Internal {
         private _mustHandleError = true;
 
         private static _rejectedTasks: SyncTask<any>[] = [];
-        private static _enforceErrorHandledTimer: number = null;
+        private static _enforceErrorHandledTimer: number|undefined;
 
         private _addCallbackSet<U>(set: CallbackSet<T, U>, callbackWillChain: boolean): Promise<U> {
             const task = new SyncTask<U>();
@@ -342,7 +330,7 @@ module Internal {
             // Wait for some async time in the future to check these tasks.
             if (!SyncTask._enforceErrorHandledTimer) {
                 SyncTask._enforceErrorHandledTimer = setTimeout(() => {
-                    SyncTask._enforceErrorHandledTimer = null;
+                    SyncTask._enforceErrorHandledTimer = undefined;
 
                     const rejectedTasks = SyncTask._rejectedTasks;
                     SyncTask._rejectedTasks = [];
@@ -422,27 +410,27 @@ module Internal {
         private _resolveCallback(callback: CallbackSet<T, any>) {
             if (callback.successFunc) {
                 run(() => {
-                    const ret = callback.successFunc(this._storedResolution);
+                    const ret = callback.successFunc!!!(this._storedResolution!!!);
                     if (isCancelable(ret)) {
                         if (callback.wasCanceled) {
                             SyncTask.cancelOtherInternal(ret, callback.cancelContext);
                         } else {
-                            callback.task.onCancel(context => SyncTask.cancelOtherInternal(ret, context));
+                            callback.task!!!.onCancel(context => SyncTask.cancelOtherInternal(ret, context));
                         }
                         // Note: don't care if ret is canceled. We don't need to bubble out since this is already resolved.
                     }
                     if (isThenable(ret)) {
                         // The success block of a then returned a new promise, so
-                        ret.then(r => { callback.task.resolve(r); }, e => { callback.task.reject(e); });
+                        ret.then(r => { callback.task!!!.resolve(r); }, e => { callback.task!!!.reject(e); });
                     } else {
-                        callback.task.resolve(ret);
+                        callback.task!!!.resolve(ret);
                     }
                 }, e => {
                     this._handleException(e, 'SyncTask caught exception in success block: ' + e.toString());
-                    callback.task.reject(e);
+                    callback.task!!!.reject(e);
                 });
             } else {
-                callback.task.resolve(this._storedResolution);
+                callback.task!!!.resolve(this._storedResolution);
             }
         }
 
@@ -458,27 +446,27 @@ module Internal {
                 callbacks.forEach(callback => {
                     if (callback.failFunc) {
                         run(() => {
-                            const ret = callback.failFunc(this._storedErrResolution);
+                            const ret = callback.failFunc!!!(this._storedErrResolution);
                             if (isCancelable(ret)) {
                                 if (callback.wasCanceled) {
                                     SyncTask.cancelOtherInternal(ret, callback.cancelContext);
                                 } else {
-                                    callback.task.onCancel(context => SyncTask.cancelOtherInternal(ret, context));
+                                    callback.task!!!.onCancel(context => SyncTask.cancelOtherInternal(ret, context));
                                 }
                                 // Note: don't care if ret is canceled. We don't need to bubble out since this is already rejected.
                             }
                             if (isThenable(ret)) {
-                                ret.then(r => { callback.task.resolve(r); }, e => { callback.task.reject(e); });
+                                ret.then(r => { callback.task!!!.resolve(r); }, e => { callback.task!!!.reject(e); });
                             } else {
                                 // The failure has been handled: ret is the resolved value.
-                                callback.task.resolve(ret);
+                                callback.task!!!.resolve(ret);
                             }
                         }, e => {
                             this._handleException(e, 'SyncTask caught exception in failure block: ' + e.toString());
-                            callback.task.reject(e);
+                            callback.task!!!.reject(e);
                         });
                     } else {
-                        callback.task.reject(this._storedErrResolution);
+                        callback.task!!!.reject(this._storedErrResolution);
                     }
                 });
             }
@@ -538,7 +526,7 @@ export function all(items: any[]): Promise<any[]> {
 
     const outTask = Defer<any[]>();
     let countRemaining = items.length;
-    let foundError: any = null;
+    let foundError: any|undefined;
     const results = Array(items.length);
 
     outTask.onCancel((val) => {
@@ -551,7 +539,7 @@ export function all(items: any[]): Promise<any[]> {
 
     const checkFinish = () => {
         if (--countRemaining === 0) {
-            if (foundError !== null) {
+            if (foundError !== undefined) {
                 outTask.reject(foundError);
             } else {
                 outTask.resolve(results);
@@ -566,8 +554,8 @@ export function all(items: any[]): Promise<any[]> {
                 results[index] = res;
                 checkFinish();
             }, err => {
-                if (foundError === null) {
-                    foundError = (err !== null) ? err : true;
+                if (foundError === undefined) {
+                    foundError = (err !== undefined) ? err : true;
                 }
                 checkFinish();
             });
@@ -579,6 +567,18 @@ export function all(items: any[]): Promise<any[]> {
     });
 
     return outTask.promise();
+}
+
+export function Defer<T>(): Deferred<T> {
+    return new Internal.SyncTask<T>();
+}
+
+export function Resolved<T>(val?: T): Promise<T> {
+    return new Internal.SyncTask<T>().resolve(val).promise();
+}
+
+export function Rejected<T>(val?: any): Promise<T> {
+    return new Internal.SyncTask<T>().reject(val).promise();
 }
 
 // Resolves/Rejects once any of the given items resolve or reject (non-thenables are 'resolved').

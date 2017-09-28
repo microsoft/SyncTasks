@@ -13,11 +13,12 @@
   "main": "dist/SyncTasks.js",
   "devDependencies": {
     "@types/mocha": "2.2.40",
+    "awesome-typescript-loader": "3.2.1",
     "mocha": "^3.1.2",
-    "ts-loader": "^0.9.5",
-    "tslint": "^4.5.1",
-    "typescript": "^2.0.6",
-    "webpack": "^1.13.3"
+    "tslint": "5.4.3",
+    "tslint-microsoft-contrib": "5.0.0",
+    "typescript": "2.6.0-dev.20170826",
+    "webpack": "3.3.0"
   },
   "repository": {
     "type": "git",
