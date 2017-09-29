@@ -127,7 +127,7 @@ export interface Cancelable {
 }
 
 export interface Promise<T> extends Thenable<T>, Cancelable {
-    catch<U>(errorFunc: ErrorFunc<U>): Promise<U>;
+    catch(errorFunc: ErrorFunc<T>): Promise<T>;
 
     finally(func: (value: T|any) => void): Promise<T>;
 
@@ -239,8 +239,8 @@ module Internal {
             }, true);
         }
 
-        catch<U>(errorFunc: ErrorFunc<U>): Promise<U> {
-            return this._addCallbackSet<U>({
+        catch(errorFunc: ErrorFunc<T>): Promise<T> {
+            return this._addCallbackSet<T>({
                 failFunc: errorFunc
             }, true);
         }
