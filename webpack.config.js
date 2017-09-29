@@ -9,11 +9,11 @@ var webpackConfig = {
     },
 
     resolve: {
-        root: [
+        modules: [
             path.resolve('./src'),
             path.resolve('./node_modules')
         ],
-        extensions: ['', '.ts', '.js']
+        extensions: ['.ts', '.js']
     },
     
     module: {
@@ -21,7 +21,7 @@ var webpackConfig = {
             // Compile TS.
             test: /\.tsx?$/, 
             exclude: /node_modules/,
-            loader: 'ts-loader'
+            loader: 'awesome-typescript-loader',
         }]
     }  
 };

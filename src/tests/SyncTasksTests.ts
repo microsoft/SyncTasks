@@ -12,7 +12,7 @@ describe('SyncTasks', function () {
     const waitTime = 25;
 
     it('Simple - null resolve after then', (done) => {
-        const task = SyncTasks.Defer<number>();
+        const task = SyncTasks.Defer<number|null>();
 
         task.promise().then(val => {
             assert.equal(val, null);
@@ -25,7 +25,7 @@ describe('SyncTasks', function () {
     });
 
     it('Simple - null then after resolve', (done) => {
-        const task = SyncTasks.Defer<number>();
+        const task = SyncTasks.Defer<number|null>();
 
         task.resolve(null);
 
@@ -176,7 +176,7 @@ describe('SyncTasks', function () {
             });
         }, err => {
             assert(false);
-            return null;
+            return undefined;
         }).then(val => {
             assert.equal(val, 5, 'outer');
             done();
@@ -891,16 +891,13 @@ describe('SyncTasks', function () {
     });
 
     it('Cancel finished task does not cancel inner', () => {
-        let canceled = false;
-        let cancelContext: any;
-
         const task = SyncTasks.Defer<number>();
         const promise = task.promise();
         task.onCancel((context) => {
             assert(false);
         });
         
-        const chain = promise.then(() => {
+        promise.then(() => {
             const inner = SyncTasks.Defer<number>();
             inner.onCancel((context) => {
                 assert(false);
