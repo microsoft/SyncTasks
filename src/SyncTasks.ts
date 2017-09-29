@@ -429,8 +429,6 @@ module Internal {
                     this._handleException(e, 'SyncTask caught exception in success block: ' + e.toString());
                     callback.task!!!.reject(e);
                 });
-            } else {
-                callback.task!!!.resolve(this._storedResolution);
             }
         }
 

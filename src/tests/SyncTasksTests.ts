@@ -777,6 +777,40 @@ describe('SyncTasks', function () {
         });
     });
 
+    it('Resolved promise with a catch block should not resolve the catch to the next then', done => {
+        let a = SyncTasks.Defer<number>();
+        let ap = a.promise();
+        let bad = false;
+        ap.catch(err => 'c').then(num => {
+            // Should never get here
+            bad = true;
+            assert(false);
+        });
+        a.resolve(4);
+        setTimeout(() => {
+            if (!bad) {
+                done();
+            }
+        }, waitTime);
+    });
+
+    it('Resolved promise with a catch block should not resolve the catch to the next then, early resolve', done => {
+        let a = SyncTasks.Defer<number>();
+        a.resolve(4);
+        let ap = a.promise();
+        let bad = false;
+        ap.catch(err => 'c').then(num => {
+            // Should never get here
+            bad = true;
+            assert(false);
+        });
+        setTimeout(() => {
+            if (!bad) {
+                done();
+            }
+        }, waitTime);
+    });
+        
     it('Cancel task (happy path)', () => {
         let canceled = false;
         let cancelContext: any;
