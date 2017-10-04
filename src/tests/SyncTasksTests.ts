@@ -176,7 +176,7 @@ describe('SyncTasks', function () {
             });
         }, err => {
             assert(false);
-            return undefined;
+            return 2;
         }).then(val => {
             assert.equal(val, 5, 'outer');
             done();
@@ -621,7 +621,7 @@ describe('SyncTasks', function () {
             unhandledErrorHandlerCalled = true;
         };
         
-        const task = SyncTasks.Rejected<number>();
+        const task = SyncTasks.Rejected<void>();
         task.catch(() => {
             catchBlockReached = true;
         });
@@ -670,7 +670,7 @@ describe('SyncTasks', function () {
             unhandledErrorHandlerCalled = true;
         };
         
-        SyncTasks.Rejected<number>().done(() => {
+        SyncTasks.Rejected<void>().done(() => {
             // Should not create a separate "unhandled" error since there is no way to "handle" it from here.
             // The existing "unhandled" error should continue to be "unhandled", as other tests have verified.
         }).catch(() => {
@@ -695,7 +695,7 @@ describe('SyncTasks', function () {
             unhandledErrorHandlerCalled = true;
         };
         
-        SyncTasks.Rejected<number>().fail(() => {
+        SyncTasks.Rejected<void>().fail(() => {
             // Should not create a separate "unhandled" error since there is no way to "handle" it from here.
             // The existing "unhandled" error should continue to be "unhandled", as other tests have verified.
         }).catch(() => {
