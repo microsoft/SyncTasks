@@ -103,8 +103,8 @@ function resolveAsyncCallbacks() {
     }
 }
 
-export type SuccessFunc<T, U> = (value: T) => U | Thenable<U> | void;
-export type ErrorFunc<U> = (error: any) => U | Thenable<U> | void;
+export type SuccessFunc<T, U> = (value: T) => U | Thenable<U>;
+export type ErrorFunc<U> = (error: any) => U | Thenable<U>;
 export type CancelFunc = (context: any) => void;
 
 export interface Deferred<T> {
