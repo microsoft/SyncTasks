@@ -108,7 +108,7 @@ export type ErrorFunc<U> = (error: any) => U | Thenable<U>;
 export type CancelFunc = (context: any) => void;
 
 export interface Deferred<T> {
-    resolve(obj?: T): Deferred<T>;
+    resolve(obj: T): Deferred<T>;
 
     reject(obj?: any): Deferred<T>;
 
@@ -281,7 +281,7 @@ module Internal {
             return this;
         }
 
-        resolve(obj?:  T): Deferred<T> {
+        resolve(obj: T): Deferred<T> {
            this._checkState(true);
            this._completedSuccess = true;
            this._storedResolution = obj;
@@ -573,8 +573,10 @@ export function Defer<T>(): Deferred<T> {
     return new Internal.SyncTask<T>();
 }
 
+export function Resolved<T extends void>(): Promise<T>;
+export function Resolved<T>(val: T): Promise<T>;
 export function Resolved<T>(val?: T): Promise<T> {
-    return new Internal.SyncTask<T>().resolve(val).promise();
+    return new Internal.SyncTask<T>().resolve(val!!!).promise();
 }
 
 export function Rejected<T>(val?: any): Promise<T> {

@@ -581,7 +581,7 @@ describe('SyncTasks', function () {
             unhandledErrorHandlerCalled = true;
         };
         
-        SyncTasks.Resolved<number>().then(() => {
+        SyncTasks.Resolved<number>(4).then(() => {
             return SyncTasks.Rejected<number>();
         });
         
@@ -799,7 +799,7 @@ describe('SyncTasks', function () {
             assert.equal(err, 5);
             assert(canceled);
             assert.equal(cancelContext, 4);
-            return SyncTasks.Resolved<number>();
+            return SyncTasks.Resolved<number>(1);
         });
     });
 
@@ -835,7 +835,7 @@ describe('SyncTasks', function () {
             assert.equal(err, 5);
             assert(canceled);
             assert.equal(cancelContext, 4);
-            return SyncTasks.Resolved<number>();
+            return SyncTasks.Resolved<number>(1);
         });
     });
 
@@ -875,7 +875,7 @@ describe('SyncTasks', function () {
             assert.equal(err, 5);
             assert(canceled);
             assert.equal(cancelContext, 4);
-            return SyncTasks.Resolved<number>();
+            return SyncTasks.Resolved<number>(1);
         });
     });
 
@@ -886,7 +886,7 @@ describe('SyncTasks', function () {
             assert(false);
         });
 
-        task.resolve();
+        task.resolve(2);
         promise.cancel(4);
     });
 
@@ -905,7 +905,7 @@ describe('SyncTasks', function () {
             return inner.promise();
         });
 
-        task.resolve();
+        task.resolve(2);
         promise.cancel(4);
     });
 
@@ -918,7 +918,7 @@ describe('SyncTasks', function () {
             canceled = true;
         });
         task.onCancel(() => {
-            task.resolve();
+            task.resolve(2);
         });
         task.onCancel(() => {
             assert(false);
@@ -955,7 +955,7 @@ describe('SyncTasks', function () {
             return SyncTasks.Rejected();
         }, (err) => {
             assert.equal(err, 5);
-            return SyncTasks.Resolved<number>();
+            return SyncTasks.Resolved<number>(2);
         });
     });
 
@@ -986,11 +986,11 @@ describe('SyncTasks', function () {
             assert.equal(err, 5);
             assert(canceled);
             assert.equal(cancelContext, 4);
-            return SyncTasks.Resolved<number>();
+            return SyncTasks.Resolved<number>(2);
         });
 
         innerPromise.cancel(4);
-        task.resolve();
+        task.resolve(2);
         return chain;
     });
 
@@ -1016,11 +1016,11 @@ describe('SyncTasks', function () {
             assert.equal(err, 5);
             assert(canceled);
             assert.equal(cancelContext, 4);
-            return SyncTasks.Resolved<number>();
+            return SyncTasks.Resolved<number>(2);
         });
 
         chain.cancel(4);
-        task.resolve();
+        task.resolve(1);
         return chain;
     });
 
@@ -1049,10 +1049,10 @@ describe('SyncTasks', function () {
             assert.equal(err, 5);
             assert(canceled);
             assert.equal(cancelContext, 4);
-            return SyncTasks.Resolved<number>();
+            return SyncTasks.Resolved<number>(2);
         });
 
-        task.resolve();
+        task.resolve(1);
         return chain;
     });
 
@@ -1081,11 +1081,11 @@ describe('SyncTasks', function () {
             assert.equal(err, 5);
             assert(canceled);
             assert.equal(cancelContext, 4);
-            return SyncTasks.Resolved<number>();
+            return SyncTasks.Resolved<number>(2);
         });
 
         chain.cancel(4);
-        task.resolve();
+        task.resolve(1);
         return chain;
     });
 
@@ -1117,10 +1117,10 @@ describe('SyncTasks', function () {
             assert.equal(err, 5);
             assert(canceled);
             assert.equal(cancelContext, 4);
-            return SyncTasks.Resolved<number>();
+            return SyncTasks.Resolved<number>(2);
         });
 
-        task.resolve();
+        task.resolve(1);
         return ret;
     });
 
@@ -1231,11 +1231,11 @@ describe('SyncTasks', function () {
             assert.equal(err, 5);
             assert(canceled);
             assert.equal(cancelContext, 4);
-            return SyncTasks.Resolved<number>();
+            return SyncTasks.Resolved<number>(2);
         });
 
         ret.cancel(4);
-        task.resolve();
+        task.resolve(1);
         return ret;
     });
 
@@ -1267,10 +1267,10 @@ describe('SyncTasks', function () {
             assert.equal(err, 5);
             assert(canceled);
             assert.equal(cancelContext, 4);
-            return SyncTasks.Resolved<number>();
+            return SyncTasks.Resolved<number>(2);
         });
 
-        task.resolve();
+        task.resolve(1);
         return ret;
     });
 
@@ -1292,7 +1292,7 @@ describe('SyncTasks', function () {
         promise.then(() => inner2.promise());
 
         promise.cancel(4);
-        task.resolve();
+        task.resolve(1);
     });
 
     it('Cancel chain of shared task does not cancel other chain (no bubble across)', () => {
@@ -1317,7 +1317,7 @@ describe('SyncTasks', function () {
         promise.then(() => inner2.promise());
 
         chain1.cancel(4);
-        task.resolve();
+        task.resolve(1);
         assert(canceled);
         assert.equal(cancelContext, 4);
     });
@@ -1379,7 +1379,7 @@ describe('SyncTasks', function () {
 
         try {
             chain.cancel(32);
-            task.resolve();
+            task.resolve(1);
             SyncTasks.config.catchExceptions = oldCatchExceptions;
         } catch (e) {
             assert.ok(false);
