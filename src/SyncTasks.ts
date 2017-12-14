@@ -47,7 +47,8 @@ export function fromThenable<T>(thenable: Es6Thenable<T>): Promise<T> {
     thenable.then(
         value => { deferred.resolve(value); },
         (err: any) => { deferred.reject(err); });
-    return deferred.promise();
+    // Force async before this promise resolves to prevent ES6 promises from catching thrown exceptions downstream
+    return deferred.promise().thenAsync(x => x);
 }
 
 function isThenable(object: any): object is Thenable<any> {
@@ -398,16 +399,16 @@ module Internal {
 
                 callbacks.forEach(callback => {
                     if (callback.asyncCallback) {
-                        asyncCallback(() => this._resolveCallback(callback));
+                        asyncCallback(() => this._resolveSuccessCallback(callback));
                     } else {
-                        this._resolveCallback(callback);
+                        this._resolveSuccessCallback(callback);
                     }
                 });
             }
             this._resolving = false;
         }
 
-        private _resolveCallback(callback: CallbackSet<T, any>) {
+        private _resolveSuccessCallback(callback: CallbackSet<T, any>) {
             if (callback.successFunc) {
                 run(() => {
                     const ret = callback.successFunc!!!(this._storedResolution!!!);
@@ -444,33 +445,41 @@ module Internal {
                 this._storedCallbackSets = [];
 
                 callbacks.forEach(callback => {
-                    if (callback.failFunc) {
-                        run(() => {
-                            const ret = callback.failFunc!!!(this._storedErrResolution);
-                            if (isCancelable(ret)) {
-                                if (callback.wasCanceled) {
-                                    SyncTask.cancelOtherInternal(ret, callback.cancelContext);
-                                } else {
-                                    callback.task!!!.onCancel(context => SyncTask.cancelOtherInternal(ret, context));
-                                }
-                                // Note: don't care if ret is canceled. We don't need to bubble out since this is already rejected.
-                            }
-                            if (isThenable(ret)) {
-                                ret.then(r => { callback.task!!!.resolve(r); }, e => { callback.task!!!.reject(e); });
-                            } else {
-                                // The failure has been handled: ret is the resolved value.
-                                callback.task!!!.resolve(ret);
-                            }
-                        }, e => {
-                            this._handleException(e, 'SyncTask caught exception in failure block: ' + e.toString());
-                            callback.task!!!.reject(e);
-                        });
+                    if (callback.asyncCallback) {
+                        asyncCallback(() => this._resolveFailureCallback(callback));
                     } else {
-                        callback.task!!!.reject(this._storedErrResolution);
+                        this._resolveFailureCallback(callback);
                     }
                 });
             }
             this._resolving = false;
+        }
+
+        private _resolveFailureCallback(callback: CallbackSet<T, any>) {
+            if (callback.failFunc) {
+                run(() => {
+                    const ret = callback.failFunc!!!(this._storedErrResolution);
+                    if (isCancelable(ret)) {
+                        if (callback.wasCanceled) {
+                            SyncTask.cancelOtherInternal(ret, callback.cancelContext);
+                        } else {
+                            callback.task!!!.onCancel(context => SyncTask.cancelOtherInternal(ret, context));
+                        }
+                        // Note: don't care if ret is canceled. We don't need to bubble out since this is already rejected.
+                    }
+                    if (isThenable(ret)) {
+                        ret.then(r => { callback.task!!!.resolve(r); }, e => { callback.task!!!.reject(e); });
+                    } else {
+                        // The failure has been handled: ret is the resolved value.
+                        callback.task!!!.resolve(ret);
+                    }
+                }, e => {
+                    this._handleException(e, 'SyncTask caught exception in failure block: ' + e.toString());
+                    callback.task!!!.reject(e);
+                });
+            } else {
+                callback.task!!!.reject(this._storedErrResolution);
+            }
         }
 
         private _handleException(e: Error, message: string): void {
