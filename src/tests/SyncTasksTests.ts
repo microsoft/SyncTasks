@@ -435,7 +435,7 @@ describe('SyncTasks', function () {
         }, err => {
             assert(false);
         });
-        
+
         setTimeout(() => done(), 20);
     });
 
@@ -464,13 +464,13 @@ describe('SyncTasks', function () {
     it('Callbacks resolve synchronously', (done) => {
         const task = SyncTasks.Defer<number>();
         let resolvedCount = 0;
-        
+
         task.promise().then(() => {
             ++resolvedCount;
         }, err => {
             assert(false);
         });
-        
+
         task.resolve(1);
         assert(resolvedCount === 1);
         done();
@@ -479,7 +479,7 @@ describe('SyncTasks', function () {
     it('Callbacks resolve in order added', (done) => {
         const task = SyncTasks.Defer<number>();
         let resolvedCount = 0;
-        
+
         task.promise().then(() => {
             assert(resolvedCount === 0);
             ++resolvedCount;
@@ -524,14 +524,14 @@ describe('SyncTasks', function () {
 
     it('"unhandledErrorHandler": Failure without any callback', (done) => {
         let unhandledErrorHandlerCalled = false;
-        
+
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
         SyncTasks.config.unhandledErrorHandler = () => {
             unhandledErrorHandlerCalled = true;
         };
-        
+
         SyncTasks.Rejected<number>();
-        
+
         setTimeout(() => {
             SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
             assert(unhandledErrorHandlerCalled);
@@ -541,16 +541,16 @@ describe('SyncTasks', function () {
 
     it('"unhandledErrorHandler": Failure with only success callback', (done) => {
         let unhandledErrorHandlerCalled = false;
-        
+
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
         SyncTasks.config.unhandledErrorHandler = () => {
             unhandledErrorHandlerCalled = true;
         };
-        
+
         SyncTasks.Rejected<number>().then(() => {
             assert(false);
         });
-        
+
         setTimeout(() => {
             SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
             assert(unhandledErrorHandlerCalled);
@@ -560,13 +560,13 @@ describe('SyncTasks', function () {
 
     it('"unhandledErrorHandler": Failure with success callback with failure callback', (done) => {
         let catchBlockReached = false;
-        
+
         SyncTasks.Rejected<number>().then(() => {
             assert(false);
         }).catch(() => {
             catchBlockReached = true;
         });
-        
+
         setTimeout(() => {
             assert(catchBlockReached);
             done();
@@ -575,16 +575,16 @@ describe('SyncTasks', function () {
 
     it('"unhandledErrorHandler": Success to inner failure without any callback', (done) => {
         let unhandledErrorHandlerCalled = false;
-        
+
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
         SyncTasks.config.unhandledErrorHandler = () => {
             unhandledErrorHandlerCalled = true;
         };
-        
+
         SyncTasks.Resolved<number>(4).then(() => {
             return SyncTasks.Rejected<number>();
         });
-        
+
         setTimeout(() => {
             SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
             assert(unhandledErrorHandlerCalled);
@@ -594,17 +594,17 @@ describe('SyncTasks', function () {
 
     it('"unhandledErrorHandler": Failure to inner failure without any callback', (done) => {
         let unhandledErrorHandlerCalled = 0;
-        
+
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
         SyncTasks.config.unhandledErrorHandler = (n: number) => {
             unhandledErrorHandlerCalled = n;
         };
-        
+
         SyncTasks.Rejected<number>(1).catch(() => {
             return SyncTasks.Rejected<number>(2);
         });
         // Note: the outer "catch" has no failure handling so the inner error leaks out.
-        
+
         setTimeout(() => {
             SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
             assert.equal(unhandledErrorHandlerCalled, 2);
@@ -615,22 +615,22 @@ describe('SyncTasks', function () {
     it('"unhandledErrorHandler": Each chained promise must handle', (done) => {
         let unhandledErrorHandlerCalled = false;
         let catchBlockReached = false;
-        
+
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
         SyncTasks.config.unhandledErrorHandler = () => {
             unhandledErrorHandlerCalled = true;
         };
-        
+
         const task = SyncTasks.Rejected<void>();
         task.catch(() => {
             catchBlockReached = true;
         });
-        
+
         // Does not handle failure.
         task.then(() => {
             assert(false);
         });
-        
+
         setTimeout(() => {
             SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
             assert(unhandledErrorHandlerCalled);
@@ -642,17 +642,17 @@ describe('SyncTasks', function () {
     it('"unhandledErrorHandler": "fail" never "handles" the failure', (done) => {
         let unhandledErrorHandlerCalled = false;
         let failBlockReached = false;
-        
+
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
         SyncTasks.config.unhandledErrorHandler = () => {
             unhandledErrorHandlerCalled = true;
         };
-        
+
         SyncTasks.Rejected<number>().fail(() => {
             failBlockReached = true;
             // If this was .catch, it would resolve the promise (with undefined) and the failure would be handled.
         });
-        
+
         setTimeout(() => {
             SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
             assert(unhandledErrorHandlerCalled);
@@ -664,12 +664,12 @@ describe('SyncTasks', function () {
     it('"unhandledErrorHandler": "done" does not create another "unhandled"', (done) => {
         let unhandledErrorHandlerCalled = false;
         let catchBlockReached = false;
-        
+
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
         SyncTasks.config.unhandledErrorHandler = () => {
             unhandledErrorHandlerCalled = true;
         };
-        
+
         SyncTasks.Rejected<void>().done(() => {
             // Should not create a separate "unhandled" error since there is no way to "handle" it from here.
             // The existing "unhandled" error should continue to be "unhandled", as other tests have verified.
@@ -677,7 +677,7 @@ describe('SyncTasks', function () {
             // "Handle" the failure.
             catchBlockReached = true;
         });
-        
+
         setTimeout(() => {
             SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
             assert(!unhandledErrorHandlerCalled);
@@ -689,12 +689,12 @@ describe('SyncTasks', function () {
     it('"unhandledErrorHandler": "fail" does not create another "unhandled"', (done) => {
         let unhandledErrorHandlerCalled = false;
         let catchBlockReached = false;
-        
+
         const oldUnhandledErrorHandler = SyncTasks.config.unhandledErrorHandler;
         SyncTasks.config.unhandledErrorHandler = () => {
             unhandledErrorHandlerCalled = true;
         };
-        
+
         SyncTasks.Rejected<void>().fail(() => {
             // Should not create a separate "unhandled" error since there is no way to "handle" it from here.
             // The existing "unhandled" error should continue to be "unhandled", as other tests have verified.
@@ -702,7 +702,7 @@ describe('SyncTasks', function () {
             // "Handle" the failure.
             catchBlockReached = true;
         });
-        
+
         setTimeout(() => {
             SyncTasks.config.unhandledErrorHandler = oldUnhandledErrorHandler;
             assert(!unhandledErrorHandlerCalled);
@@ -896,7 +896,7 @@ describe('SyncTasks', function () {
         task.onCancel((context) => {
             assert(false);
         });
-        
+
         promise.then(() => {
             const inner = SyncTasks.Defer<number>();
             inner.onCancel((context) => {
@@ -926,7 +926,7 @@ describe('SyncTasks', function () {
 
         promise.cancel();
         assert(canceled);
-        
+
         // Check the onCancel caused task resolution.
         return promise;
     });
@@ -948,7 +948,7 @@ describe('SyncTasks', function () {
 
         promise.cancel();
         assert(canceled);
-        
+
         // Check the onCancel caused task rejection.
         return promise.then(() => {
             assert(false);
@@ -968,7 +968,7 @@ describe('SyncTasks', function () {
         task.onCancel((context) => {
             assert(false);
         });
-    
+
         const inner = SyncTasks.Defer<number>();
         inner.onCancel((context) => {
             canceled = true;
@@ -976,7 +976,7 @@ describe('SyncTasks', function () {
             inner.reject(5);
         });
         const innerPromise = inner.promise();
-        
+
         const chain = promise.then(() => {
             return innerPromise;
         }, (err) => {
@@ -1000,7 +1000,7 @@ describe('SyncTasks', function () {
 
         const task = SyncTasks.Defer<number>();
         const promise = task.promise();
-        
+
         const chain = promise.then(() => {
             const inner = SyncTasks.Defer<number>();
             inner.onCancel((context) => {
@@ -1030,7 +1030,7 @@ describe('SyncTasks', function () {
 
         const task = SyncTasks.Defer<number>();
         const promise = task.promise();
-        
+
         const chain = promise.then(() => {
             const inner = SyncTasks.Defer<number>();
             inner.onCancel((context) => {
@@ -1062,7 +1062,7 @@ describe('SyncTasks', function () {
 
         const task = SyncTasks.Defer<number>();
         const promise = task.promise();
-        
+
         const chain = promise.then(() => {
             const inner = SyncTasks.Defer<number>();
             inner.onCancel((context) => {
@@ -1095,7 +1095,7 @@ describe('SyncTasks', function () {
 
         const task = SyncTasks.Defer<number>();
         const promise = task.promise();
-        
+
         const ret = promise.then(() => {
             const newTask = SyncTasks.Defer<number>();
             newTask.onCancel((context) => {
@@ -1212,7 +1212,7 @@ describe('SyncTasks', function () {
 
         const task = SyncTasks.Defer<number>();
         const promise = task.promise();
-        
+
         const ret = promise.then(() => {
             const newTask = SyncTasks.Defer<number>();
             newTask.onCancel((context) => {
@@ -1245,7 +1245,7 @@ describe('SyncTasks', function () {
 
         const task = SyncTasks.Defer<number>();
         const promise = task.promise();
-        
+
         const ret = promise.then(() => {
             const newTask = SyncTasks.Defer<number>();
             newTask.onCancel((context) => {
@@ -1277,7 +1277,7 @@ describe('SyncTasks', function () {
     it('Cancel shared task does not cancel children (no bubble down)', () => {
         const task = SyncTasks.Defer<number>();
         const promise = task.promise();
-        
+
         const inner1 = SyncTasks.Defer<number>();
         inner1.onCancel((context) => {
             assert(false);
@@ -1301,7 +1301,7 @@ describe('SyncTasks', function () {
 
         const task = SyncTasks.Defer<number>();
         const promise = task.promise();
-        
+
         const inner1 = SyncTasks.Defer<number>();
         inner1.onCancel((context) => {
             canceled = true;
@@ -1369,7 +1369,7 @@ describe('SyncTasks', function () {
 
         const task = SyncTasks.Defer<number>();
         const promise = task.promise();
-        
+
         const chain = promise.then(() => {
             const inner = SyncTasks.Defer<number>();
             const innerPromise = inner.promise();
@@ -1488,6 +1488,32 @@ describe('SyncTasks', function () {
             done();
         }, err => {
             assert(false);
+        });
+
+        SyncTasks.asyncCallback(() => {
+            tooEarly = false;
+        });
+        task.resolve(1);
+
+        assert(tooEarly);
+    });
+
+    it('thenDeferred Failure', (done) => {
+        const task = SyncTasks.Defer<number>();
+
+        let tooEarly = true;
+        task.promise().then(val => {
+            assert.equal(val, 1);
+            return SyncTasks.Rejected(4);
+        }, err => {
+            assert(false);
+            return 5;
+        }).thenAsync(val => {
+            assert(false);
+        }, err => {
+            assert.equal(err, 4);
+            assert(!tooEarly);
+            done();
         });
 
         SyncTasks.asyncCallback(() => {
