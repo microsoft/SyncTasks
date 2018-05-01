@@ -1454,7 +1454,7 @@ describe('SyncTasks', function () {
         }
     });
 
-    it('Cancel resovled promise does not call cancellation handlers', () => {
+    it('Cancel resolved promise does not call cancellation handlers', () => {
         const defer = SyncTasks.Defer<void>();
         const promise = defer.promise();
 
