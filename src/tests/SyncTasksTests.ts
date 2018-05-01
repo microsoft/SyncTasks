@@ -1454,6 +1454,34 @@ describe('SyncTasks', function () {
         }
     });
 
+    it('Cancel resolved promise does not call cancellation handlers', () => {
+        const defer = SyncTasks.Defer<void>();
+        const promise = defer.promise();
+
+        defer.onCancel(() => {
+            assert(false, 'Handler should not be called');
+        });
+
+        defer.resolve(void 0);
+        promise.cancel();
+    });
+
+    it('Multiple bubble promise cancellation results in single cancel handler callbacks', () => {
+        const defer = SyncTasks.Defer<void>();
+        const promise1 = defer.promise().then(() => { /* noop */});
+        const promise2 = defer.promise().then(() => { /* noop */});
+        let callbackCount = 0;
+
+        defer.onCancel(() => {
+            callbackCount++;
+        });
+
+        promise1.cancel();
+        promise2.cancel();
+
+        assert.equal(callbackCount, 1, 'onCancel handler not called correct number of times');
+    });
+
     it('deferCallback', (done) => {
         let got = false;
         let got2 = false;
