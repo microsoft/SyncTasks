@@ -1454,7 +1454,7 @@ describe('SyncTasks', function () {
         }
     });
 
-    it('Cancel resovled promise does not call cancelation handlers', () => {
+    it('Cancel resovled promise does not call cancellation handlers', () => {
         const defer = SyncTasks.Defer<void>();
         const promise = defer.promise();
 
@@ -1466,7 +1466,7 @@ describe('SyncTasks', function () {
         promise.cancel();
     });
 
-    it('Multiple bubble promise cancelation results in single cancel handler callbacks', () => {
+    it('Multiple bubble promise cancellation results in single cancel handler callbacks', () => {
         const defer = SyncTasks.Defer<void>();
         const promise1 = defer.promise().then(() => { /* noop */});
         const promise2 = defer.promise().then(() => { /* noop */});
