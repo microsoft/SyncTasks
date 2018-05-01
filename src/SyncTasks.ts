@@ -286,6 +286,8 @@ module Internal {
            this._checkState(true);
            this._completedSuccess = true;
            this._storedResolution = obj;
+           // Cannot cancel resolved promise - nuke chain
+           this._cancelCallbacks = [];
 
            this._resolveSuccesses();
 
@@ -296,6 +298,8 @@ module Internal {
            this._checkState(false);
            this._completedFail = true;
            this._storedErrResolution = obj;
+           // Cannot cancel resolved promise - nuke chain
+           this._cancelCallbacks = [];
 
            this._resolveFailures();
 
@@ -362,9 +366,11 @@ module Internal {
 
             this._wasCanceled = true;
             this._cancelContext = context;
+            const callbacks = this._cancelCallbacks;
+            this._cancelCallbacks = [];
 
-            if (this._cancelCallbacks.length > 0) {
-                this._cancelCallbacks.forEach(callback => {
+            if (callbacks.length > 0) {
+                callbacks.forEach(callback => {
                     if (!this._completedSuccess && !this._completedFail) {
                         callback(this._cancelContext);
                     }
