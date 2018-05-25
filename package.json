@@ -1,6 +1,6 @@
 {
   "name": "synctasks",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "An explicitly non-A+ Promise library that resolves promises synchronously",
   "author": "David de Regt <David.de.Regt@microsoft.com>",
   "scripts": {
@@ -19,6 +19,9 @@
     "tslint-microsoft-contrib": "5.0.0",
     "typescript": "2.6.0-dev.20170826",
     "webpack": "3.3.0"
+  },
+  "dependencies": {
+    "@types/es6-promise": "^0.0.33"
   },
   "repository": {
     "type": "git",
