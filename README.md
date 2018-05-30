@@ -95,6 +95,8 @@ support.  The methods supported are:
     absolutely nothing -- it does not guarantee any effects like failure resolution or any sort of stopping of chaining.
     The cancellation attempt will walk backwards as far up the promise chain as possible, so if you cancel a promise, be
     aware that it may end up calling cancel functions for deferrals many steps back in the promise chain.
+- `toEs6Promise()` - A helper function that wraps `SyncTasks.Promise` object "back" into ES6 Promise. It directly maps success 
+    and failure cases into respective calls to ES6 Promise constructor arguments `resolve` and `reject`
 
 ## Examples
 

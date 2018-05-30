@@ -1551,4 +1551,75 @@ describe('SyncTasks', function () {
 
         assert(tooEarly);
     });
+
+    it('toEs6Promise Simple', (done) => {
+        const task = SyncTasks.Defer<number>();
+        let tooEarly = true;
+
+        task.promise().toEs6Promise().then(val => {
+            assert.equal(val, 3.50);
+            done();
+        }, err => {
+            assert(false);
+        });
+        
+        SyncTasks.asyncCallback(() => {
+            tooEarly = false;
+        });
+        task.resolve(3.50);
+
+        assert(tooEarly);
+    });
+
+    it('toEs6Promise Resolved', (done) => {
+        const resolved = SyncTasks.Resolved<number>(42);
+        let tooEarly = true;
+
+        resolved.toEs6Promise().then(val => {
+            assert.equal(val, 42);
+            assert(tooEarly);
+            done();
+        }, err => {
+            assert(false);
+        });
+
+        SyncTasks.asyncCallback(() => {
+            tooEarly = false;
+        });
+        assert(tooEarly);
+    });
+
+    it('toEs6Promise Rejected', (done) => {
+        const rejected = SyncTasks.Rejected<number>(42);
+        let tooEarly = true;
+
+        rejected.toEs6Promise().then(val => {
+            assert(false);
+        }, err => {
+            assert.equal(err, 42);
+            assert(tooEarly);
+            done();
+        });
+
+        SyncTasks.asyncCallback(() => {
+            tooEarly = false;
+        });
+        assert(tooEarly);
+    });
+
+    it('toEs6Promise and back', (done) => {
+        const task = SyncTasks.Defer<number>();
+        const stPromise = task.promise();
+        const esPromise = stPromise.toEs6Promise();
+        const stPromiseAgain = SyncTasks.fromThenable(esPromise);
+        
+        stPromiseAgain.then(val => {
+            assert.equal(val, 100500);
+            done();
+        }, err => {
+            assert(false);
+        });
+
+        task.resolve(100500);
+    });
 });
