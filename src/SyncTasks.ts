@@ -525,14 +525,17 @@ export function all<T1, T2, T3, T4, T5, T6, T7, T8>(
     values: [Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>, Raceable<T6>, Raceable<T7>, Raceable<T8>]
 ): STPromise<[T1, T2, T3, T4, T5, T6, T7, T8]>;
 
-export function all<T1, T2, T3, T4, T5, T6, T7>(values:
- [Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>, Raceable<T6>, Raceable<T7>]): STPromise<[T1, T2, T3, T4, T5, T6, T7]>;
+export function all<T1, T2, T3, T4, T5, T6, T7>(
+    values: [Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>, Raceable<T6>, Raceable<T7>]
+): STPromise<[T1, T2, T3, T4, T5, T6, T7]>;
 
-export function all<T1, T2, T3, T4, T5, T6>(values:
- [Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>, Raceable<T6>]): STPromise<[T1, T2, T3, T4, T5, T6]>;
+export function all<T1, T2, T3, T4, T5, T6>(
+    values: [Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>, Raceable<T6>]
+): STPromise<[T1, T2, T3, T4, T5, T6]>;
 
-export function all<T1, T2, T3, T4, T5>(values:
-[Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>]): STPromise<[T1, T2, T3, T4, T5]>;
+export function all<T1, T2, T3, T4, T5>(
+    values: [Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>]
+): STPromise<[T1, T2, T3, T4, T5]>;
 
 export function all<T1, T2, T3, T4>(values: [Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>]): STPromise<[T1, T2, T3, T4]>;
 
