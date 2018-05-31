@@ -103,7 +103,7 @@ support.  The methods supported are:
 ### Simple Usage
 
 ```typescript
-function sendMeAStringLater(numberOfMilliseconds: number, theString: string): SyncTasks.Promise<void> {
+function sendMeAStringLater(numberOfMilliseconds: number, theString: string): SyncTasks.Promise<string> {
     let defer = SyncTasks.Defer<string>();
     setTimeout(() => {
         defer.resolve(theString);
@@ -121,7 +121,7 @@ sendMeAStringLater(500, 'hi').then(myString => {
 ### Add Cancellation
 
 ```typescript
-function sendMeAStringLater(numberOfMilliseconds: number, theString: string): SyncTasks.Promise<void> {
+function sendMeAStringLater(numberOfMilliseconds: number, theString: string): SyncTasks.Promise<string> {
     let defer = SyncTasks.Defer<string>();
     let didFinish = false;
     defer.onCancel(whyWasICancelled => {
