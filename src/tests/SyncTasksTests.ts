@@ -461,6 +461,43 @@ describe('SyncTasks', function () {
         task.resolve(2);
     });
 
+    it('"raceTimer" basic success', (done) => {
+        const task = SyncTasks.Defer<number>();
+
+        SyncTasks.raceTimer(task.promise(), 20).then(ret => {
+            assert.equal(ret.timedOut, false);
+            assert.equal(ret.result, 1);
+            done();
+        }, err => {
+            assert(false);
+        });
+
+        task.resolve(1);
+    });
+
+    it('"raceTimer" basic failure', (done) => {
+        const task = SyncTasks.Defer<number>();
+
+        SyncTasks.raceTimer(task.promise(), 20).then(ret => {
+            assert(false);
+        }, err => {
+            assert.equal(err, 1);
+            done();
+        });
+
+        task.reject(1);
+    });
+
+    it('"raceTimer" basic timeout', (done) => {
+        SyncTasks.raceTimer(SyncTasks.Defer<number>().promise(), 10).then(ret => {
+            assert.equal(ret.timedOut, true);
+            assert.equal(ret.result, undefined);
+            done();
+        }, err => {
+            assert(false);
+        });
+    });
+
     it('Callbacks resolve synchronously', (done) => {
         const task = SyncTasks.Defer<number>();
         let resolvedCount = 0;
