@@ -684,15 +684,15 @@ export function race(items: any[]): STPromise<any> {
     return outTask.promise();
 }
 
-export type RaceTimerResponse<T> = { timedOut: boolean, result?: T };
+export type RaceTimerResponse<T> = { timedOut: true, result: undefined }|{ timedOut: false, result: T };
 export function raceTimer<T>(promise: STPromise<T>, timeMs: number): STPromise<RaceTimerResponse<T>> {
     let timerDef = Defer<RaceTimerResponse<T>>();
     const token = setTimeout(() => {
-        timerDef.resolve({ timedOut: true });
+        timerDef.resolve({ timedOut: true, result: undefined });
     }, timeMs);
-    const adaptedPromise = promise.then(resp => {
+    const adaptedPromise = promise.then<RaceTimerResponse<T>>(resp => {
         clearTimeout(token);
-        return { timedOut: false, result: resp } as RaceTimerResponse<T>;
+        return { timedOut: false, result: resp };
     });
     return race([adaptedPromise, timerDef.promise()]);
 }
