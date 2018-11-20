@@ -1,5 +1,7 @@
 # SyncTasks
 
+[![Build Status](https://dev.azure.com/ms/SyncTasks/_apis/build/status/Microsoft.SyncTasks)](https://dev.azure.com/ms/SyncTasks/_build/latest?definitionId=13)
+
 Yet another promise library, but this one is designed intentionally against the ES6 promise pattern, which asynchronously resolves
 promise callbacks in the next tick of the JS engine.  In many cases, asynchronous resolution is the safest and
 easiest-to-understand implementation of a promise, but it adds a huge delay to the resolution, which in most places is unnecessary.
