@@ -11,6 +11,10 @@
  * automatically close.
  */
 
+// Vendor specific handles removed in typescript 3.X
+declare function setImmediate(handler: (...args: any[]) => void): number;
+declare function setImmediate(handler: any, ...args: any[]): number;
+
 export const config = {
     // If we catch exceptions in success/fail blocks, it silently falls back to the fail case of the outer promise.
     // If this is global variable is true, it will also spit out a console.error with the exception for debugging.
