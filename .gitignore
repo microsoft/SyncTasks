@@ -3,6 +3,6 @@
 /src/bin
 /src/obj
 /dist
+/dist-test
 *.user
-/SyncTasksTestsPack.js
 test-results.xml
