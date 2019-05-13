@@ -1,29 +1,24 @@
-var path = require('path');
-var webpack = require('webpack');
+const path = require('path');
 
-var webpackConfig = {
+module.exports = {
+    devtool: 'cheap-eval-source-map',
+    mode: 'development',
+
     entry: './src/tests/SyncTasksTests.ts',
-    
     output: {
         filename: './SyncTasksTestsPack.js',
+        path: path.resolve(__dirname, 'dist-test'),
     },
 
     resolve: {
-        modules: [
-            path.resolve('./src'),
-            path.resolve('./node_modules')
-        ],
         extensions: ['.ts', '.js']
     },
-    
-    module: {
-        loaders: [{
-            // Compile TS.
-            test: /\.tsx?$/, 
-            exclude: /node_modules/,
-            loader: 'awesome-typescript-loader',
-        }]
-    }  
-};
 
-module.exports = webpackConfig;
+    module: {
+        rules: [{
+            test: /\.tsx?$/,
+            loader: 'awesome-typescript-loader',
+            exclude: /node_modules/,
+        }]
+    }
+};
