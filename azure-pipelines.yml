@@ -10,11 +10,11 @@ steps:
 - script: |
     npm ci
     npm run build
-    npm run webtest
+    npm run test:web
   displayName: 'Build'
 
 - script: |
-    npm run test-ci
+    npm run test:ci
   displayName: 'Test'
 
 - task: PublishTestResults@2

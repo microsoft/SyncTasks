@@ -2,16 +2,16 @@
     "compilerOptions": {
         "forceConsistentCasingInFileNames": true,
         "noImplicitReturns": true,
-        "strictNullChecks": true,
         "noUnusedLocals": true,
         "noImplicitThis": true,
         "noImplicitAny": true,
         "declaration": true,
         "noResolve": false,
+        "strict": true,
         "module": "commonjs",
         "target": "es5",
         "outDir": "dist",
-        "lib": ["es5", "dom", "es2015.promise"]
+        "lib": ["es5", "dom", "es2015.promise", "es2015"]
     },
 
     "include": [
