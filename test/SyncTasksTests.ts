@@ -1,11 +1,8 @@
-﻿/// <reference path="dependencies.d.ts"/>
-
-import assert = require('assert');
-
-import SyncTasks = require('../SyncTasks');
+﻿import * as assert from 'assert';
+import * as SyncTasks from '../src/SyncTasks';
 
 describe('SyncTasks', function () {
-    function noop() {/*noop*/}
+    function noop(): void {/*noop*/}
 
     // Amount of time to wait to ensure all sync and trivially async (e.g. setTimeout(..., 0)) things have finished.
     // Useful to do something 'later'.
@@ -1599,7 +1596,7 @@ describe('SyncTasks', function () {
         }, err => {
             assert(false);
         });
-        
+
         SyncTasks.asyncCallback(() => {
             tooEarly = false;
         });
@@ -1649,7 +1646,7 @@ describe('SyncTasks', function () {
         const stPromise = task.promise();
         const esPromise = stPromise.toEs6Promise();
         const stPromiseAgain = SyncTasks.fromThenable(esPromise);
-        
+
         stPromiseAgain.then(val => {
             assert.equal(val, 100500);
             done();

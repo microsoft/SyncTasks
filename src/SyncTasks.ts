@@ -29,11 +29,11 @@ export const config = {
     // Enabling this option in the release would have a negative impact on the application performance.
     traceEnabled: false,
 
-    exceptionHandler: undefined as (((ex: Error) => void)|undefined),
+    exceptionHandler: undefined as (((ex: Error) => void) | undefined),
 
     // If an ErrorFunc is not added to the task (then, catch, always) before the task rejects or synchonously
     // after that, then this function is called with the error. Default throws the error.
-    unhandledErrorHandler: <(err: any) => void>((err: any) => { throw err; })
+    unhandledErrorHandler: ((err: any) => { throw err; }) as (err: any) => void,
 };
 
 export interface Es6Thenable<R> {
@@ -87,7 +87,7 @@ const useSetImmediate = typeof setImmediate !== 'undefined';
 /**
  * This function will defer callback of the specified callback lambda until the next JS tick, simulating standard A+ promise behavior
  */
-export function asyncCallback(callback: () => void) {
+export function asyncCallback(callback: () => void): void {
     asyncCallbacks.push(callback);
 
     if (asyncCallbacks.length === 1) {
@@ -100,7 +100,7 @@ export function asyncCallback(callback: () => void) {
     }
 }
 
-function resolveAsyncCallbacks() {
+function resolveAsyncCallbacks(): void {
     const savedCallbacks = asyncCallbacks;
     asyncCallbacks = [];
     for (let i = 0; i < savedCallbacks.length; i++) {
@@ -134,9 +134,9 @@ export interface Cancelable {
 export interface STPromise<T> extends Thenable<T>, Cancelable {
     catch(errorFunc: ErrorFunc<T>): STPromise<T>;
 
-    finally(func: (value: T|any) => void): STPromise<T>;
+    finally(func: (value: T | any) => void): STPromise<T>;
 
-    always<U>(func: (value: T|any) => U | Thenable<U>): STPromise<U>;
+    always<U>(func: (value: T | any) => U | Thenable<U>): STPromise<U>;
 
     done(successFunc: (value: T) => void): STPromise<T>;
 
@@ -152,7 +152,8 @@ export interface STPromise<T> extends Thenable<T>, Cancelable {
 
 export { STPromise as Promise };
 
-module Internal {
+// eslint-disable-next-line @typescript-eslint/no-namespace
+namespace Internal {
     export interface CallbackSet<T, U> {
         successFunc?: SuccessFunc<T, U>;
         failFunc?: ErrorFunc<U>;
@@ -163,14 +164,14 @@ module Internal {
     }
 
     export class SyncTask<T> implements Deferred<T>, STPromise<T> {
-        private _storedResolution: T|undefined;
-        private _storedErrResolution: any|undefined;
+        private _storedResolution: T | undefined;
+        private _storedErrResolution: any | undefined;
         private _completedSuccess = false;
         private _completedFail = false;
         private _traceEnabled = false;
         // If _traceEnabled is true we save stacktrace of the first resolution of the task in the _completeStack
         // we are storing the Error instead of stack because it would be faster in standard scenario.
-        private _completeStack: Error;
+        private _completeStack: Error | undefined;
 
         private _cancelCallbacks: CancelFunc[] = [];
         private _cancelContext: any;
@@ -187,7 +188,7 @@ module Internal {
         private _mustHandleError = true;
 
         private static _rejectedTasks: SyncTask<any>[] = [];
-        private static _enforceErrorHandledTimer: number|undefined;
+        private static _enforceErrorHandledTimer: number | undefined;
 
         private _addCallbackSet<U>(set: CallbackSet<T, U>, callbackWillChain: boolean): STPromise<U> {
             const task = new SyncTask<U>();
@@ -236,7 +237,7 @@ module Internal {
         then<U>(successFunc: SuccessFunc<T, U>, errorFunc?: ErrorFunc<U>): STPromise<U> {
             return this._addCallbackSet<U>({
                 successFunc: successFunc,
-                failFunc: errorFunc
+                failFunc: errorFunc,
             }, true);
         }
 
@@ -244,79 +245,79 @@ module Internal {
             return this._addCallbackSet<U>({
                 successFunc: successFunc,
                 failFunc: errorFunc,
-                asyncCallback: true
+                asyncCallback: true,
             }, true);
         }
 
         catch(errorFunc: ErrorFunc<T>): STPromise<T> {
             return this._addCallbackSet<T>({
-                failFunc: errorFunc
+                failFunc: errorFunc,
             }, true);
         }
 
-        always<U>(func: (value: T|any) => U | STPromise<U>): STPromise<U> {
+        always<U>(func: (value: T | any) => U | STPromise<U>): STPromise<U> {
             return this._addCallbackSet<U>({
                 successFunc: func,
-                failFunc: func
+                failFunc: func,
             }, true);
         }
 
-        setTracingEnabled(enabled: boolean) : STPromise<T> {
+        setTracingEnabled(enabled: boolean): STPromise<T> {
             this._traceEnabled = enabled;
             return this;
         }
 
         // Finally should let you inspect the value of the promise as it passes through without affecting the then chaining
         // i.e. a failed promise with a finally after it should then chain to the fail case of the next then
-        finally(func: (value: T|any) => void): STPromise<T> {
-            this._addCallbackSet<T|any>({
+        finally(func: (value: T | any) => void): STPromise<T> {
+            this._addCallbackSet<T | any>({
                 successFunc: func,
-                failFunc: func
+                failFunc: func,
             }, false);
             return this;
         }
 
         done(successFunc: (value: T) => void): STPromise<T> {
             this._addCallbackSet<void>({
-                successFunc: successFunc
+                successFunc: successFunc,
             }, false);
             return this;
         }
 
         fail(errorFunc: (error: any) => void): STPromise<T> {
             this._addCallbackSet<void>({
-                failFunc: errorFunc
+                failFunc: errorFunc,
             }, false);
             return this;
         }
 
         resolve(obj: T): Deferred<T> {
-           this._checkState(true);
-           this._completedSuccess = true;
-           this._storedResolution = obj;
-           // Cannot cancel resolved promise - nuke chain
-           this._cancelCallbacks = [];
+            this._checkState(true);
+            this._completedSuccess = true;
+            this._storedResolution = obj;
+            // Cannot cancel resolved promise - nuke chain
+            this._cancelCallbacks = [];
 
-           this._resolveSuccesses();
+            this._resolveSuccesses();
 
-           return this;
+            return this;
         }
 
         reject(obj?: any): Deferred<T> {
-           this._checkState(false);
-           this._completedFail = true;
-           this._storedErrResolution = obj;
-           // Cannot cancel resolved promise - nuke chain
-           this._cancelCallbacks = [];
+            this._checkState(false);
+            this._completedFail = true;
+            this._storedErrResolution = obj;
+            // Cannot cancel resolved promise - nuke chain
+            this._cancelCallbacks = [];
 
-           this._resolveFailures();
+            this._resolveFailures();
 
-           SyncTask._enforceErrorHandled(this);
+            SyncTask._enforceErrorHandled(this);
 
-           return this;
+            return this;
         }
 
-        private _checkState(resolve: boolean) {
+        private _checkState(resolve: boolean): void {
             if (this._completedSuccess || this._completedFail) {
                 if (this._completeStack) {
                     console.error(this._completeStack.message, this._completeStack.stack);
@@ -402,7 +403,7 @@ module Internal {
             return this;
         }
 
-        private _resolveSuccesses() {
+        private _resolveSuccesses(): void {
             this._resolving = true;
 
             // New callbacks can be added as the current callbacks run: use a loop to get through all of them.
@@ -422,7 +423,7 @@ module Internal {
             this._resolving = false;
         }
 
-        private _resolveSuccessCallback(callback: CallbackSet<T, any>) {
+        private _resolveSuccessCallback(callback: CallbackSet<T, any>): void {
             if (callback.successFunc) {
                 run(() => {
                     const ret = callback.successFunc!!!(this._storedResolution!!!);
@@ -449,7 +450,7 @@ module Internal {
             }
         }
 
-        private _resolveFailures() {
+        private _resolveFailures(): void {
             this._resolving = true;
 
             // New callbacks can be added as the current callbacks run: use a loop to get through all of them.
@@ -469,7 +470,7 @@ module Internal {
             this._resolving = false;
         }
 
-        private _resolveFailureCallback(callback: CallbackSet<T, any>) {
+        private _resolveFailureCallback(callback: CallbackSet<T, any>): void {
             if (callback.failFunc) {
                 run(() => {
                     const ret = callback.failFunc!!!(this._storedErrResolution);
@@ -518,7 +519,7 @@ export type Raceable<T> = T | Thenable<T> | undefined | null;
 // Note: resolves immediately if given no items.
 export function all<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(
     values: [Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>, Raceable<T6>, Raceable<T7>, Raceable<T8>, Raceable<T9>,
-             Raceable<T10>]
+        Raceable<T10>]
 ): STPromise<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10]>;
 
 export function all<T1, T2, T3, T4, T5, T6, T7, T8, T9>(
@@ -547,7 +548,7 @@ export function all<T1, T2, T3>(values: [Raceable<T1>, Raceable<T2>, Raceable<T3
 
 export function all<T1, T2>(values: [Raceable<T1>, Raceable<T2>]): STPromise<[T1, T2]>;
 
-export function all<T>(values: (T|Thenable<T>)[]): STPromise<T[]>;
+export function all<T>(values: (T | Thenable<T>)[]): STPromise<T[]>;
 
 export function all(items: any[]): STPromise<any[]> {
     if (items.length === 0) {
@@ -556,7 +557,7 @@ export function all(items: any[]): STPromise<any[]> {
 
     const outTask = Defer<any[]>();
     let countRemaining = items.length;
-    let foundError: any|undefined;
+    let foundError: any;
     const results = Array(items.length);
 
     outTask.onCancel((val) => {
@@ -567,7 +568,7 @@ export function all(items: any[]): STPromise<any[]> {
         });
     });
 
-    const checkFinish = () => {
+    const checkFinish = (): void => {
         if (--countRemaining === 0) {
             if (foundError !== undefined) {
                 outTask.reject(foundError);
@@ -579,7 +580,8 @@ export function all(items: any[]): STPromise<any[]> {
 
     items.forEach((item, index) => {
         if (isThenable(item)) {
-            const task = <Thenable<any>>item;
+            const task = item as Thenable<any>;
+
             task.then(res => {
                 results[index] = res;
                 checkFinish();
@@ -620,25 +622,25 @@ export function race<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(
         Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>, Raceable<T6>, Raceable<T7>, Raceable<T8>, Raceable<T9>,
         Raceable<T10>
     ]
-): STPromise<T1|T2|T3|T4|T5|T6|T7|T8|T9|T10>;
+): STPromise<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8 | T9 | T10>;
 
 export function race<T1, T2, T3, T4, T5, T6, T7, T8, T9>(
     values: [
         Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>, Raceable<T6>, Raceable<T7>, Raceable<T8>, Raceable<T9>
     ]
-): STPromise<T1|T2|T3|T4|T5|T6|T7|T8|T9>;
+): STPromise<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8 | T9>;
 
 export function race<T1, T2, T3, T4, T5, T6, T7, T8>(
     values: [Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>, Raceable<T6>, Raceable<T7>, Raceable<T8>]
-): STPromise<T1|T2|T3|T4|T5|T6|T7|T8>;
+): STPromise<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8>;
 
 export function race<T1, T2, T3, T4, T5, T6, T7>(
     values: [Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>, Raceable<T6>, Raceable<T7>]
-): STPromise<T1|T2|T3|T4|T5|T6|T7>;
+): STPromise<T1 | T2 | T3 | T4 | T5 | T6 | T7>;
 
 export function race<T1, T2, T3, T4, T5, T6>(
     values: [Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>, Raceable<T6>]
-): STPromise<T1|T2|T3|T4|T5|T6>;
+): STPromise<T1 | T2 | T3 | T4 | T5 | T6>;
 export function race<T1, T2, T3, T4, T5>(
     values: [Raceable<T1>, Raceable<T2>, Raceable<T3>, Raceable<T4>, Raceable<T5>]): STPromise<T1|T2|T3|T4|T5>;
 
@@ -648,7 +650,7 @@ export function race<T1, T2, T3>(values: [Raceable<T1>, Raceable<T2>, Raceable<T
 
 export function race<T1, T2>(values: [Raceable<T1>, Raceable<T2>]): STPromise<T1|T2>;
 
-export function race<T>(values: (T|Thenable<T>)[]): STPromise<T[]>;
+export function race<T>(values: (T | Thenable<T>)[]): STPromise<T[]>;
 
 export function race(items: any[]): STPromise<any> {
     const outTask = Defer<any>();
@@ -664,7 +666,7 @@ export function race(items: any[]): STPromise<any> {
 
     items.forEach(item => {
         if (isThenable(item)) {
-            const task = <Thenable<any>>item;
+            const task = item as Thenable<any>;
             task.then(res => {
                 if (!hasSettled) {
                     hasSettled = true;
@@ -688,7 +690,7 @@ export function race(items: any[]): STPromise<any> {
     return outTask.promise();
 }
 
-export type RaceTimerResponse<T> = { timedOut: true, result: undefined }|{ timedOut: false, result: T };
+export type RaceTimerResponse<T> = { timedOut: true; result: undefined } | { timedOut: false; result: T };
 export function raceTimer<T>(promise: STPromise<T>, timeMs: number): STPromise<RaceTimerResponse<T>> {
     let timerDef = Defer<RaceTimerResponse<T>>();
     const token = setTimeout(() => {

@@ -1,0 +1,12 @@
+{
+  "parserOptions": {
+    "project": "./tsconfig.json"
+  },
+  "extends": ["skype"],
+  "env": {
+    "mocha": true
+  },
+  "rules": {
+    "no-console": ["error", { "allow": ["error"] }]
+  }
+}

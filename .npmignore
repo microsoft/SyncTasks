@@ -4,3 +4,8 @@
 /src/obj
 *.user
 /SyncTasksTestsPack.js
+.eslintrc
+test.html
+tsconfig.json
+test
+dist-test
